@@ -23,7 +23,7 @@ public class ParserMain {
 
             // 2. 语法分析
             // 学生需要实现 HandcraftParser，此处也可替换为基于 ANTLR 的 AntlrParser：
-            // Parser parser = new AntlrParser(tokens);
+            //Parser parser = new AntlrParser(tokens);
             Parser parser = new HandcraftParser(tokens);
             boolean success = parser.parse();
 
