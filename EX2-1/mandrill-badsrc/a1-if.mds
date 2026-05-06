@@ -1,1 +1,1 @@
-if a == 0 write = 10;
+if (a == 0) write = 10;

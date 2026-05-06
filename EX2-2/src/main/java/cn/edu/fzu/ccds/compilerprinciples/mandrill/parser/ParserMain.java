@@ -12,9 +12,11 @@ import java.util.List;
 public class ParserMain {
     public static void main(String[] args) throws IOException {
         InputStream inputStream = args.length > 0 && !args[0].equals("-")
-                ? new FileInputStream(args[0]) : System.in;
+                ? new FileInputStream(args[0])
+                : System.in;
         PrintStream printStream = args.length > 1 && !args[1].equals("-")
-                ? new PrintStream(args[1]) : System.out;
+                ? new PrintStream(args[1])
+                : System.out;
 
         try (inputStream; printStream) {
             // 1. 词法分析
