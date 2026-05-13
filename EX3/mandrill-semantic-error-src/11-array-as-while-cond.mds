@@ -1,0 +1,4 @@
+a[] = "hello";
+while (a) {
+    write = 1;
+}

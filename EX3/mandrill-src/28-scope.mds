@@ -1,0 +1,27 @@
+# Test case for scope handling
+# Tests: global variables, local variables, nested scopes
+
+a = 1;        # Global variable 'a'
+
+func test() {
+    global d;
+
+    d = 70;
+    
+    local b;   # Local variable in function
+    b = 2;
+    write = b; # Access local variable
+    
+    {
+        local c;  # Local variable in inner block
+        c = 3;
+        write = c; # Access inner block variable
+        write = b; # Access outer block variable
+        write = a; # Access global variable from within function
+    }
+    
+    write = b;     # Still can access 'b' after inner block
+    # write = c;   # Error: 'c' is not accessible here
+}
+
+write = a;     # Access global variable outside function

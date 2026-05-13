@@ -1,0 +1,5 @@
+func[] test() {
+    a[] = "hello";
+    return a;
+}
+b = test() + 5;

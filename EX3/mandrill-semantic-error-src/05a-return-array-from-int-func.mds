@@ -1,0 +1,4 @@
+func test() {
+    a[] = "hello";
+    return a;
+}
