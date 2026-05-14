@@ -1,0 +1,14 @@
+dstore 1
+dwrite 0
+dload 0
+dstore 2
+eval 65543
+dstore 88
+dstore 16
+eval 65548
+dload 0
+puti 0
+jump 96
+nop 0
+nop 0
+jump 0xFFFFFFFF
