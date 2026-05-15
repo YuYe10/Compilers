@@ -1,0 +1,7 @@
+func doubleIt(n) {
+    return n * 2;
+}
+
+result = doubleIt(5);  // 应该是10
+write = result;
+put = '\n';

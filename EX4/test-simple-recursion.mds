@@ -1,0 +1,11 @@
+func factorial(n) {
+    if (n <= 1) {
+        return 1;
+    } else {
+        return n * factorial(n - 1);
+    }
+}
+
+result = factorial(3);  // 应该是6
+write = result;
+put = '\n';

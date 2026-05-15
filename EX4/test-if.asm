@@ -4,11 +4,10 @@ dload 0
 dstore 2
 eval 65543
 dstore 88
-dstore 16
+dstore 64
 eval 65548
 dload 0
 puti 0
-jump 96
-nop 0
+jump 88
 nop 0
 jump 0xFFFFFFFF

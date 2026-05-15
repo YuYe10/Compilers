@@ -127,8 +127,9 @@ public class SymbolTable {
 
     public SymbolInfo addParameter(String name, boolean isArray) {
         SymbolInfo info = new SymbolInfo(name, SymbolKind.PARAM,
-                isArray ? ValueType.ARRAY_TYPE : ValueType.INT, paramCount++, isArray);
+                isArray ? ValueType.ARRAY_TYPE : ValueType.INT, paramCount, isArray);
         info.localOffset = paramCount;
+        paramCount++;
         currentParamSymbols.put(name, info);
         return info;
     }

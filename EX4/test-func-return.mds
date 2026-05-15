@@ -1,0 +1,9 @@
+func add(a, b) {
+    return a + b;
+}
+
+x = 10;
+y = 20;
+z = add(x, y);
+write = z;
+put = '\n';

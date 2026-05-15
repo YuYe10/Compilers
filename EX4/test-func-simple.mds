@@ -1,0 +1,8 @@
+func test() {
+    write = 100;
+    return 200;
+}
+
+z = test();
+write = z;
+put = '\n';

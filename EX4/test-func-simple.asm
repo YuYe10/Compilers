@@ -1,0 +1,13 @@
+jump 40
+dstore 100
+puti 0
+dstore 200
+ret 0
+dstore 0
+jal 8
+dwrite 0
+dload 0
+puti 0
+dstore 10
+putc 0
+jump 0xFFFFFFFF

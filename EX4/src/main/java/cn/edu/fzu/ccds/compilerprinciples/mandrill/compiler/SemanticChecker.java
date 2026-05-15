@@ -27,6 +27,9 @@ public class SemanticChecker extends MandrillBaseVisitor<Void> {
 
         if (ctx.parameterList() != null) {
             for (MandrillParser.ParameterContext paramCtx : ctx.parameterList().parameter()) {
+                String paramName = paramCtx.Identifier().getText();
+                boolean isArray = paramCtx.arraySuffix() != null;
+                symbolTable.addParameter(paramName, isArray);
             }
         }
 

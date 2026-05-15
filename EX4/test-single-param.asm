@@ -1,0 +1,15 @@
+jump 48
+dlwrite 0
+dlload 0
+dstore 2
+eval 65539
+ret 0
+dstore 5
+dstore 4
+jal 8
+dwrite 0
+dload 0
+puti 0
+dstore 10
+putc 0
+jump 0xFFFFFFFF

@@ -1,10 +1,10 @@
 jump 208
 dlwrite 0
-dstore 88
-dstore 64
 dlload 0
 dstore 1
 eval 65545
+dstore 64
+dstore 88
 eval 65548
 dlload 0
 ret 0

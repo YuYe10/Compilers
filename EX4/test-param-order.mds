@@ -1,0 +1,9 @@
+func subtract(a, b) {
+    return a - b;  // 应该是a - b，如果顺序反了结果就会错
+}
+
+x = 10;
+y = 3;
+result = subtract(x, y);  // 10 - 3 = 7
+write = result;
+put = '\n';
