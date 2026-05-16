@@ -46,6 +46,12 @@ public class SimulatorMain {
              inputStream;
              printStream) {
             List<Instruction> instructions = AssemblyParser.parse(assemblyFileStream);
+            // 打印所有指令
+            System.err.println("Debug: Loaded instructions:");
+            for (int i = 0; i < instructions.size(); i++) {
+                System.err.println("Debug: Instruction " + i + " @ " + (i*8) + ": " + instructions.get(i).getClass().getSimpleName() + " " + instructions.get(i).getOperand());
+            }
+            
             SimulatorMemory memory = new SimulatorMemory(instructions, inputStream, printStream);
             while (memory.getProgramCounter() != 0xFFFFFFFFL) {
                 int index = (int) (memory.getProgramCounter() / 8);
@@ -53,6 +59,8 @@ public class SimulatorMain {
                     throw new IllegalStateException("Program counter out of bounds: " + memory.getProgramCounter());
                 }
                 Instruction instruction = instructions.get(index);
+                System.err.println("Debug: PC=" + memory.getProgramCounter() + " (" + index + "), executing: " + instruction.getClass().getSimpleName() + " " + instruction.getOperand());
+                System.err.println("Debug: Stack: " + memory.getOperandStack());
                 instruction.execute(memory);
             }
         } catch (FileNotFoundException e) {

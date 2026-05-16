@@ -30,7 +30,10 @@ public class CompilerImpl implements Compiler {
             throw new IOException("Semantic error: " + e.getMessage());
         }
 
-        CodeGenerator codeGenerator = new CodeGenerator(table);
+        // 重新收集符号，用于代码生成
+        SymbolTable codeGenTable = new SymbolTable();
+        SymbolCollector.collect(tree, codeGenTable);
+        CodeGenerator codeGenerator = new CodeGenerator(codeGenTable);
         return codeGenerator.generate(tree);
     }
 }

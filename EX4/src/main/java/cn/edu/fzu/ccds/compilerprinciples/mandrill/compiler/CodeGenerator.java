@@ -39,14 +39,14 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
 
             String jumpTargetStr = "jump " + label;
             String jumpReplaceStr = "jump " + addressValue;
-            generated = generated.replace(jumpTargetStr, jumpReplaceStr);
+            generated = generated.replaceAll(jumpTargetStr, jumpReplaceStr);
 
             String dstoreTargetStr = "dstore_label " + label;
             String dstoreReplaceStr = "dstore " + addressValue;
-            generated = generated.replace(dstoreTargetStr, dstoreReplaceStr);
+            generated = generated.replaceAll(dstoreTargetStr, dstoreReplaceStr);
 
-            String labelStr = "label_" + label + "\n";
-            generated = generated.replace(labelStr, "");
+            String labelStr = "label_" + label + "\\n";
+            generated = generated.replaceAll(labelStr, "");
         }
 
         return generated;
@@ -58,6 +58,7 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
 
     private void emit(String instr) {
         code.append(instr).append("\n");
+        instructionCounter++;
     }
 
     private void emitLabel(String label) {
@@ -66,7 +67,6 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
 
     private void emitJump(String targetLabel) {
         emit("jump " + targetLabel);
-        instructionCounter++;
     }
 
     @Override
@@ -81,7 +81,6 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
         }
 
         emit("jump MAIN_START");
-        instructionCounter++;
 
         for (MandrillParser.FunctionDefContext funcCtx : ctx.functionDef()) {
             String funcName = funcCtx.Identifier().getText();
@@ -89,14 +88,13 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
             visitFunctionDef(funcCtx);
         }
 
-        labelToAddresses.put("MAIN_START", instructionCounter);
+        emitLabel("MAIN_START");
 
         for (MandrillParser.StatementContext stmtCtx : ctx.statement()) {
             visitStatement(stmtCtx);
         }
 
         emit("jump 0xFFFFFFFF");
-        instructionCounter++;
 
         return null;
     }
@@ -191,7 +189,6 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
         if (currentFunctionParamCount > 0) {
             for (int i = 0; i < currentFunctionParamCount; i++) {
                 emit("dlwrite " + i);
-                instructionCounter++;
             }
         }
 
@@ -237,13 +234,11 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
                 if (ctx.rvalue() != null && ctx.rvalue().expression() != null) {
                     visitExpression(ctx.rvalue().expression());
                     emit("puti 0");
-                    instructionCounter++;
                 }
             } else if (lvalueCtx instanceof MandrillParser.PrintCharContext) {
                 if (ctx.rvalue() != null && ctx.rvalue().expression() != null) {
                     visitExpression(ctx.rvalue().expression());
                     emit("putc 0");
-                    instructionCounter++;
                 }
             } else if (lvalueCtx instanceof MandrillParser.TargetVariableContext) {
                 MandrillParser.TargetVariableContext targetCtx = (MandrillParser.TargetVariableContext) lvalueCtx;
@@ -260,17 +255,14 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
                         stringLiterals.add(strValue);
                         emitConstant((strValue.length() + 2) * 4);
                         emit("malloc 0");
-                        instructionCounter += 2;
                         int i = 0;
                         for (char c : strValue.toCharArray()) {
                             emitConstant((int) c);
                             emit("dawrite " + (i * 4));
-                            instructionCounter += 2;
                             i++;
                         }
                         emitConstant(0);
                         emit("dawrite " + (i * 4));
-                        instructionCounter += 2;
                     } else {
                         visitExpression(rhsExpr);
                     }
@@ -280,14 +272,11 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
                         emit("daload 0");
                         emit("swap");
                         emit("dawrite 0");
-                        instructionCounter += 3;
                     } else if (info != null && info.kind == SymbolTable.SymbolKind.GLOBAL_VAR) {
                         emit("dwrite " + info.index);
-                        instructionCounter++;
                     } else if (info != null && (info.kind == SymbolTable.SymbolKind.LOCAL_VAR
                             || info.kind == SymbolTable.SymbolKind.PARAM)) {
                         emit("dlwrite " + info.localOffset);
-                        instructionCounter++;
                     }
                 }
             }
@@ -299,15 +288,12 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
                 MandrillParser.ExpressionContext sizeExpr = ctx.rvalue().expression();
                 visitExpression(sizeExpr);
                 emit("malloc 0");
-                instructionCounter += 2;
 
                 if (info != null && info.kind == SymbolTable.SymbolKind.GLOBAL_VAR) {
                     emit("dwrite " + info.index);
-                    instructionCounter++;
                 } else if (info != null && (info.kind == SymbolTable.SymbolKind.LOCAL_VAR
                         || info.kind == SymbolTable.SymbolKind.PARAM)) {
                     emit("dlwrite " + info.localOffset);
-                    instructionCounter++;
                 }
             }
         }
@@ -323,12 +309,9 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
         emitLabel(loopStart);
         if (ctx.expr != null) {
             emit("dstore_label " + loopEnd);
-            instructionCounter++;
             emit("dstore_label " + loopBody);
-            instructionCounter++;
             visitExpression(ctx.expr);
             emit("eval " + Constants.EVAL_CONDITION);
-            instructionCounter++;
         }
         emitLabel(loopBody);
         if (ctx.stmtBlock() != null) {
@@ -349,37 +332,32 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
         emitJump(loopStart);
         emitLabel(loopEnd);
         emit("nop 0");
-        instructionCounter++;
         return null;
     }
 
     @Override
     public Void visitConditionStatement(MandrillParser.ConditionStatementContext ctx) {
+        String thenLabel = newLabel();
         String elseLabel = newLabel();
         String endLabel = newLabel();
 
         if (ctx.expr != null) {
-            String thenLabel = newLabel();
             emit("dstore_label " + elseLabel);
-            instructionCounter++;
             emit("dstore_label " + thenLabel);
-            instructionCounter++;
             visitExpression(ctx.expr);
             emit("eval " + Constants.EVAL_CONDITION);
-            instructionCounter++;
-            emitLabel(thenLabel);
         }
 
+        emitLabel(thenLabel);
         if (ctx.thenStatement != null) {
             for (MandrillParser.StatementContext stmtCtx : ctx.thenStatement.statement()) {
                 visitStatement(stmtCtx);
             }
         }
 
-        emitJump(endLabel);
-
-        emitLabel(elseLabel);
         if (ctx.elseStatement != null) {
+            emitJump(endLabel);
+            emitLabel(elseLabel);
             for (MandrillParser.StatementContext stmtCtx : ctx.elseStatement.statement()) {
                 visitStatement(stmtCtx);
             }
@@ -387,7 +365,6 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
 
         emitLabel(endLabel);
         emit("nop 0");
-        instructionCounter++;
         return null;
     }
 
@@ -397,7 +374,6 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
             visitExpression(ctx.expression());
         }
         emit("ret 0");
-        instructionCounter++;
         return null;
     }
 
@@ -410,8 +386,7 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
     }
 
     private void emitConstant(long value) {
-        emit("dstore " + value);
-        instructionCounter++;
+        emit("dconst " + value);
     }
 
     private Void visitExpression(MandrillParser.ExpressionContext ctx) {
@@ -442,57 +417,39 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
             if (sourceVarCtx.expression() != null) {
                 if (info != null && info.kind == SymbolTable.SymbolKind.GLOBAL_VAR) {
                     emit("dload " + info.index);
-                    instructionCounter++;
                 } else if (info != null && (info.kind == SymbolTable.SymbolKind.LOCAL_VAR
                         || info.kind == SymbolTable.SymbolKind.PARAM)) {
                     emit("dlload " + info.localOffset);
-                    instructionCounter++;
                 }
                 visitExpression(sourceVarCtx.expression());
                 emit("daload 0");
-                instructionCounter++;
             } else {
                 if (info != null && info.kind == SymbolTable.SymbolKind.GLOBAL_VAR) {
                     emit("dload " + info.index);
-                    instructionCounter++;
                 } else if (info != null && (info.kind == SymbolTable.SymbolKind.LOCAL_VAR
                         || info.kind == SymbolTable.SymbolKind.PARAM)) {
                     emit("dlload " + info.localOffset);
-                    instructionCounter++;
                 }
             }
         } else if (ctx instanceof MandrillParser.FunctionCallContext) {
             MandrillParser.FunctionCallContext funcCallCtx = (MandrillParser.FunctionCallContext) ctx;
             String funcName = funcCallCtx.Identifier().getText();
 
-            List<Integer> tempVars = new ArrayList<>();
             if (funcCallCtx.argumentList() != null) {
                 List<MandrillParser.ExpressionContext> args = funcCallCtx.argumentList().expression();
                 for (int i = args.size() - 1; i >= 0; i--) {
                     visitExpression(args.get(i));
-                    int tempVar = tempVarIndex++;
-                    tempVars.add(tempVar);
-                    emit("dstore " + tempVar);
-                    instructionCounter++;
                 }
-            }
-
-            for (int i = tempVars.size() - 1; i >= 0; i--) {
-                emit("dload " + tempVars.get(i));
-                instructionCounter++;
             }
 
             int funcIndex = functionStartAddresses.getOrDefault(funcName, -1);
             int targetFuncParamCount = functionParamCounts.getOrDefault(funcName, 0);
             emitConstant(targetFuncParamCount * 4);
             emit("jal " + (funcIndex * 8));
-            instructionCounter += 2;
         } else if (ctx instanceof MandrillParser.InputIntContext) {
             emit("geti 0");
-            instructionCounter++;
         } else if (ctx instanceof MandrillParser.InputChatContext) {
             emit("getc 0");
-            instructionCounter++;
         } else if (ctx instanceof MandrillParser.MulDivModExpressionContext) {
             MandrillParser.MulDivModExpressionContext mulDivCtx = (MandrillParser.MulDivModExpressionContext) ctx;
             if (mulDivCtx.expression(0) != null)
@@ -506,7 +463,6 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
             } else if (mulDivCtx.Percentage() != null) {
                 emit("eval " + Constants.EVAL_MOD);
             }
-            instructionCounter++;
         } else if (ctx instanceof MandrillParser.AddSubExpressionContext) {
             MandrillParser.AddSubExpressionContext addSubCtx = (MandrillParser.AddSubExpressionContext) ctx;
             if (addSubCtx.expression(0) != null)
@@ -518,7 +474,6 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
             } else if (addSubCtx.Minus() != null) {
                 emit("eval " + Constants.EVAL_MINUS);
             }
-            instructionCounter++;
         } else if (ctx instanceof MandrillParser.ComparingExpressionContext) {
             MandrillParser.ComparingExpressionContext compareCtx = (MandrillParser.ComparingExpressionContext) ctx;
             if (compareCtx.expression(0) != null)
@@ -534,7 +489,6 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
             } else if (compareCtx.NoMoreThan() != null) {
                 emit("eval " + Constants.EVAL_LESS_OR_EQUAL);
             }
-            instructionCounter++;
         } else if (ctx instanceof MandrillParser.EqualityExpressionContext) {
             MandrillParser.EqualityExpressionContext eqCtx = (MandrillParser.EqualityExpressionContext) ctx;
             if (eqCtx.expression(0) != null)
@@ -546,7 +500,6 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
             } else if (eqCtx.Inequality() != null) {
                 emit("eval " + Constants.EVAL_NOT_EQUAL);
             }
-            instructionCounter++;
         } else if (ctx instanceof MandrillParser.SubgroupExpressionContext) {
             MandrillParser.SubgroupExpressionContext subExprCtx = (MandrillParser.SubgroupExpressionContext) ctx;
             if (subExprCtx.expression() != null) {
