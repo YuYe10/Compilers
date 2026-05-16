@@ -105,6 +105,12 @@ public class SymbolCollector extends MandrillBaseVisitor<Void> {
                     visitExpression(targetCtx.expression());
                 }
             }
+        } else if (ctx.Identifier() != null) {
+            String varName = ctx.Identifier().getText();
+            boolean isArray = ctx.arraySuffix() != null;
+            if (symbolTable.lookup(varName) == null) {
+                symbolTable.addGlobalVariable(varName, isArray);
+            }
         }
         if (ctx.rvalue() != null && ctx.rvalue().expression() != null) {
             visitExpression(ctx.rvalue().expression());

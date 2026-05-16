@@ -13,7 +13,7 @@ public class DALoad extends Instruction {
     @Override
     public void execute(SimulatorMemory vm) {
         long address = vm.getOperandStack().pop();
-        long value = vm.getHeap().read(address);
+        long value = vm.getHeap().read(address + operand);
         vm.getOperandStack().push(value);
         vm.instructionDone();
     }

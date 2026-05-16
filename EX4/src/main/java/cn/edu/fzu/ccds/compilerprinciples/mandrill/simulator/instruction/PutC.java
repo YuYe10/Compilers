@@ -14,6 +14,7 @@ public class PutC extends Instruction {
     public void execute(SimulatorMemory vm) {
         long value = vm.getOperandStack().pop();
         vm.getPrintStream().print(Character.toChars((int) value));
+        vm.getPrintStream().flush();
         vm.instructionDone();
     }
 }

@@ -81,6 +81,8 @@ public class AssemblyParser {
                 return new Pop(operand);
             case "dconst":
                 return new DConst(operand);
+            case "setsp":
+                return new SetSP(operand);
             default:
                 throw new IllegalArgumentException("Unknown instruction: " + name);
         }

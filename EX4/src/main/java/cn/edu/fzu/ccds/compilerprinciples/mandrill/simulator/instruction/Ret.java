@@ -12,8 +12,10 @@ public class Ret extends Instruction {
 
     @Override
     public void execute(SimulatorMemory vm) {
+        long returnValue = vm.getOperandStack().pop();
         SimulatorMemory.Frame frame = vm.popCallFrame();
         vm.setStackPointer(frame.savedSp);
+        vm.getOperandStack().push(returnValue);
         vm.setProgramCounter(frame.savedPc);
     }
 }

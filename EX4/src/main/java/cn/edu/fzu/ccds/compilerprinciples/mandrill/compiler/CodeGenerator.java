@@ -13,6 +13,7 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
     private int instructionCounter = 0;
     private final Map<String, Integer> functionStartAddresses;
     private final Map<String, Integer> functionParamCounts;
+    private final Map<String, Integer> functionLocalCounts;
     private final Map<String, Integer> labelToAddresses;
     private int currentFunctionParamCount = 0;
     private int currentFunctionLocalCount = 0;
@@ -24,6 +25,7 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
         this.code = new StringBuilder();
         this.functionStartAddresses = new HashMap<>();
         this.functionParamCounts = new HashMap<>();
+        this.functionLocalCounts = new HashMap<>();
         this.labelToAddresses = new HashMap<>();
         this.stringLiterals = new ArrayList<>();
     }
@@ -41,9 +43,9 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
             String jumpReplaceStr = "jump " + addressValue;
             generated = generated.replaceAll(jumpTargetStr, jumpReplaceStr);
 
-            String dstoreTargetStr = "dstore_label " + label;
-            String dstoreReplaceStr = "dstore " + addressValue;
-            generated = generated.replaceAll(dstoreTargetStr, dstoreReplaceStr);
+            String dconstTargetStr = "dconst_label " + label;
+            String dconstReplaceStr = "dconst " + addressValue;
+            generated = generated.replaceAll(dconstTargetStr, dconstReplaceStr);
 
             String labelStr = "label_" + label + "\\n";
             generated = generated.replaceAll(labelStr, "");
@@ -63,6 +65,7 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
 
     private void emitLabel(String label) {
         labelToAddresses.put(label, instructionCounter);
+        code.append("label_").append(label).append("\n");
     }
 
     private void emitJump(String targetLabel) {
@@ -89,6 +92,12 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
         }
 
         emitLabel("MAIN_START");
+
+        if (currentFunctionLocalCount > 0) {
+            emitConstant(currentFunctionLocalCount * 4);
+            emit("malloc 0");
+            emit("setsp 0");
+        }
 
         for (MandrillParser.StatementContext stmtCtx : ctx.statement()) {
             visitStatement(stmtCtx);
@@ -187,7 +196,7 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
         emitLabel(funcName);
 
         if (currentFunctionParamCount > 0) {
-            for (int i = 0; i < currentFunctionParamCount; i++) {
+            for (int i = currentFunctionParamCount - 1; i >= 0; i--) {
                 emit("dlwrite " + i);
             }
         }
@@ -198,7 +207,11 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
             }
         }
 
+        emit("dconst 0");
+        emit("ret 0");
+
         functionParamCounts.put(funcName, currentFunctionParamCount);
+        functionLocalCounts.put(funcName, currentFunctionLocalCount);
         symbolTable.exitScope();
         return null;
     }
@@ -223,6 +236,16 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
 
     @Override
     public Void visitDeclarationStmt(MandrillParser.DeclarationStmtContext ctx) {
+        String varName = ctx.Identifier().getText();
+        boolean isArray = ctx.arraySuffix() != null;
+        
+        if (ctx.scope != null && ctx.scope.getText().equals("local")) {
+            SymbolTable.SymbolInfo info = symbolTable.addLocalVariable(varName, isArray);
+            currentFunctionLocalCount++;
+        } else if (ctx.scope != null && ctx.scope.getText().equals("global")) {
+            symbolTable.addGlobalVariable(varName, isArray);
+        }
+        
         return null;
     }
 
@@ -232,7 +255,18 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
             MandrillParser.LvalueContext lvalueCtx = ctx.lvalue();
             if (lvalueCtx instanceof MandrillParser.PrintIntegerContext) {
                 if (ctx.rvalue() != null && ctx.rvalue().expression() != null) {
-                    visitExpression(ctx.rvalue().expression());
+                    MandrillParser.ExpressionContext rhsExpr = ctx.rvalue().expression();
+                    if (rhsExpr instanceof MandrillParser.SourceVariableContext) {
+                        MandrillParser.SourceVariableContext sourceVarCtx = (MandrillParser.SourceVariableContext) rhsExpr;
+                        String varName = sourceVarCtx.Identifier().getText();
+                        SymbolTable.SymbolInfo info = symbolTable.lookup(varName);
+                        if (info != null && info.valueType == SymbolTable.ValueType.ARRAY_TYPE) {
+                            visitExpression(rhsExpr);
+                            emit("puts 0");
+                            return null;
+                        }
+                    }
+                    visitExpression(rhsExpr);
                     emit("puti 0");
                 }
             } else if (lvalueCtx instanceof MandrillParser.PrintCharContext) {
@@ -253,16 +287,21 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
                         strValue = strValue.substring(1, strValue.length() - 1);
                         int stringIndex = stringLiterals.size();
                         stringLiterals.add(strValue);
-                        emitConstant((strValue.length() + 2) * 4);
+                        emitConstant((strValue.length() + 1) * 4);
                         emit("malloc 0");
+                        int tempIndex = tempVarIndex++;
+                        emit("dwrite " + tempIndex);
                         int i = 0;
                         for (char c : strValue.toCharArray()) {
+                            emit("dload " + tempIndex);
                             emitConstant((int) c);
                             emit("dawrite " + (i * 4));
                             i++;
                         }
+                        emit("dload " + tempIndex);
                         emitConstant(0);
                         emit("dawrite " + (i * 4));
+                        emit("dload " + tempIndex);
                     } else {
                         visitExpression(rhsExpr);
                     }
@@ -285,9 +324,32 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
             SymbolTable.SymbolInfo info = symbolTable.lookup(varName);
 
             if (ctx.rvalue() != null && ctx.rvalue().expression() != null) {
-                MandrillParser.ExpressionContext sizeExpr = ctx.rvalue().expression();
-                visitExpression(sizeExpr);
-                emit("malloc 0");
+                MandrillParser.ExpressionContext rhsExpr = ctx.rvalue().expression();
+                
+                if (rhsExpr instanceof MandrillParser.StringLiteralContext) {
+                    String strValue = rhsExpr.getText();
+                    strValue = strValue.substring(1, strValue.length() - 1);
+                    int stringIndex = stringLiterals.size();
+                    stringLiterals.add(strValue);
+                    emitConstant((strValue.length() + 1) * 4);
+                    emit("malloc 0");
+                    int tempIndex = tempVarIndex++;
+                    emit("dwrite " + tempIndex);
+                    int i = 0;
+                    for (char c : strValue.toCharArray()) {
+                        emit("dload " + tempIndex);
+                        emitConstant((int) c);
+                        emit("dawrite " + (i * 4));
+                        i++;
+                    }
+                    emit("dload " + tempIndex);
+                    emitConstant(0);
+                    emit("dawrite " + (i * 4));
+                    emit("dload " + tempIndex);
+                } else {
+                    visitExpression(rhsExpr);
+                    emit("malloc 0");
+                }
 
                 if (info != null && info.kind == SymbolTable.SymbolKind.GLOBAL_VAR) {
                     emit("dwrite " + info.index);
@@ -308,8 +370,8 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
 
         emitLabel(loopStart);
         if (ctx.expr != null) {
-            emit("dstore_label " + loopEnd);
-            emit("dstore_label " + loopBody);
+            emit("dconst_label " + loopEnd);
+            emit("dconst_label " + loopBody);
             visitExpression(ctx.expr);
             emit("eval " + Constants.EVAL_CONDITION);
         }
@@ -342,8 +404,12 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
         String endLabel = newLabel();
 
         if (ctx.expr != null) {
-            emit("dstore_label " + elseLabel);
-            emit("dstore_label " + thenLabel);
+            if (ctx.elseStatement != null) {
+                emit("dconst_label " + elseLabel);
+            } else {
+                emit("dconst_label " + endLabel);
+            }
+            emit("dconst_label " + thenLabel);
             visitExpression(ctx.expr);
             emit("eval " + Constants.EVAL_CONDITION);
         }
@@ -443,8 +509,8 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
             }
 
             int funcIndex = functionStartAddresses.getOrDefault(funcName, -1);
-            int targetFuncParamCount = functionParamCounts.getOrDefault(funcName, 0);
-            emitConstant(targetFuncParamCount * 4);
+            int targetFuncLocalCount = functionLocalCounts.getOrDefault(funcName, 0);
+            emitConstant(targetFuncLocalCount * 4);
             emit("jal " + (funcIndex * 8));
         } else if (ctx instanceof MandrillParser.InputIntContext) {
             emit("geti 0");
