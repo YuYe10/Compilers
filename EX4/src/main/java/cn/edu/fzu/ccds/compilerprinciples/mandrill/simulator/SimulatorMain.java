@@ -4,15 +4,18 @@ import cn.edu.fzu.ccds.compilerprinciples.mandrill.simulator.assembler.AssemblyP
 import cn.edu.fzu.ccds.compilerprinciples.mandrill.simulator.instruction.Instruction;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 
 /**
  * Mandrill v2.0 虚拟机汇编模拟器 CLI 入口。
  *
  * 用法：
- *   SimulatorMain <file>
- *   SimulatorMain <file> <in>
- *   SimulatorMain <file> <in> <out>
+ * SimulatorMain <file>
+ * SimulatorMain <file> <in>
+ * SimulatorMain <file> <in> <out>
  *
  * 其中 "-" 表示 stdin（输入）或 stdout（输出）。
  */
@@ -43,15 +46,10 @@ public class SimulatorMain {
         }
 
         try (FileInputStream assemblyFileStream = new FileInputStream(file);
-             inputStream;
-             printStream) {
+                inputStream;
+                printStream) {
             List<Instruction> instructions = AssemblyParser.parse(assemblyFileStream);
-            // 打印所有指令
-            System.err.println("Debug: Loaded instructions:");
-            for (int i = 0; i < instructions.size(); i++) {
-                System.err.println("Debug: Instruction " + i + " @ " + (i*8) + ": " + instructions.get(i).getClass().getSimpleName() + " " + instructions.get(i).getOperand());
-            }
-            
+
             SimulatorMemory memory = new SimulatorMemory(instructions, inputStream, printStream);
             while (memory.getProgramCounter() != 0xFFFFFFFFL) {
                 int index = (int) (memory.getProgramCounter() / 8);
@@ -59,15 +57,18 @@ public class SimulatorMain {
                     throw new IllegalStateException("Program counter out of bounds: " + memory.getProgramCounter());
                 }
                 Instruction instruction = instructions.get(index);
-                System.err.println("Debug: PC=" + memory.getProgramCounter() + " (" + index + "), executing: " + instruction.getClass().getSimpleName() + " " + instruction.getOperand());
-                System.err.println("Debug: Stack: " + memory.getOperandStack());
                 instruction.execute(memory);
             }
-        } catch (FileNotFoundException e) {
-            System.err.println("汇编文件未找到: " + file);
-            System.exit(1);
-        } catch (IOException e) {
-            System.err.println("IO 错误: " + e.getMessage());
+        } catch (Exception e) {
+            System.err.println("=== Assembly file content ===");
+            try {
+                System.err.print(Files.readString(Path.of(file), StandardCharsets.UTF_8));
+            } catch (IOException ioException) {
+                System.err.println("Could not read assembly file: " + ioException.getMessage());
+            }
+            System.err.println("============================");
+            System.err.println("Runtime error: " + e.getMessage());
+            e.printStackTrace();
             System.exit(1);
         }
     }

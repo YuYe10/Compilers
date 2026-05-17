@@ -29,13 +29,22 @@ public class CompilerMain {
         }
 
         try {
-            String assembly = compileFile(inputPath);
+            String inputContent = Files.readString(Path.of(inputPath), StandardCharsets.UTF_8);
+            CompilerImpl backend = new CompilerImpl();
+            String assembly = backend.compile(new ByteArrayInputStream(inputContent.getBytes(StandardCharsets.UTF_8)));
             if (outputPath != null) {
                 Files.writeString(Path.of(outputPath), assembly, StandardCharsets.UTF_8);
             } else {
                 System.out.print(assembly);
             }
         } catch (Exception e) {
+            System.err.println("=== Input file content ===");
+            try {
+                System.err.print(Files.readString(Path.of(inputPath), StandardCharsets.UTF_8));
+            } catch (IOException ioException) {
+                System.err.println("Could not read input file: " + ioException.getMessage());
+            }
+            System.err.println("=========================");
             System.err.println("Compilation error: " + e.getMessage());
             e.printStackTrace();
             System.exit(3);

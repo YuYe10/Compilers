@@ -5,6 +5,7 @@ normaldir=$(pwd)/mandrill-src
 inputdir=$(pwd)/mandrill-in
 ansdir=$(pwd)/mandrill-ans
 log_file=$(pwd)/$1
+debug_log_file=$(pwd)/debug.log
 make clean
 make 
 cd build || (echo 0 >>"$log_file" && exit 0) # 如果编译失败，直接输出0分并退出
@@ -12,7 +13,7 @@ score=0
 full_score=0
 MDC="java -cp .:../antlr-4.13.2-complete.jar cn.edu.fzu.ccds.compilerprinciples.mandrill.compiler.CompilerMain"
 MDS="java -cp .:../antlr-4.13.2-complete.jar cn.edu.fzu.ccds.compilerprinciples.mandrill.simulator.SimulatorMain"
-echo $CCHK
+> "$debug_log_file"
 for filec in $(ls $normaldir/*.mds); do
     full_score=$((full_score+1))
     pure_file_name=$(basename $filec)
@@ -22,14 +23,14 @@ for filec in $(ls $normaldir/*.mds); do
     cp $filec data.mds
     cp $filein mandrill.in
     echo "Testing ${filec}..."
-    timeout 2 $MDC data.mds data.asm
+    timeout 2 $MDC data.mds data.asm 2>&1 | tee -a "$debug_log_file"
     if [ $? -ne 0 ]; then
         echo "FAILED: Time Limit Exceeded or Runtime Error, return code: $?" >>"$log_file"
         echo ${filec%.mds} : FAILED >>"$log_file"
         continue
     fi
-    echo "[RUNNING] timeout $timeo $MDS data.asm mandrill.in data.out"
-    timeout 2 $MDS data.asm mandrill.in data.out
+    echo "[RUNNING] timeout $timeo $MDS data.asm mandrill.in data.out" >>"$debug_log_file"
+    timeout 2 $MDS data.asm mandrill.in data.out 2>&1 | tee -a "$debug_log_file"
     diff data.out "$fileans" >ans.diff.txt
     if [ ! -s ans.diff.txt ]; then
         echo PASSED

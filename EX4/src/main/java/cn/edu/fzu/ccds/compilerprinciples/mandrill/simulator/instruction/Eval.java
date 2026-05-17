@@ -20,6 +20,7 @@ public class Eval extends Instruction {
             } else {
                 vm.setProgramCounter(falseTarget);
             }
+            vm.instructionDone();
         } else {
             long right = vm.getOperandStack().pop();
             long left = vm.getOperandStack().pop();

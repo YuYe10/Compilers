@@ -1,7 +1,15 @@
 /home/yuye/Resporitory/Compilers/EX4/mandrill-src/01-a+1 : PASSED
 /home/yuye/Resporitory/Compilers/EX4/mandrill-src/02-a+b : PASSED
-/home/yuye/Resporitory/Compilers/EX4/mandrill-src/03-expr : PASSED
-/home/yuye/Resporitory/Compilers/EX4/mandrill-src/04-gcd : PASSED
+0a1
+> -66060719 -323398799 -743275679
+/home/yuye/Resporitory/Compilers/EX4/mandrill-src/03-expr : FAILED
+1c1
+< 18
+\ 文件末尾没有换行符
+---
+> 6
+\ 文件末尾没有换行符
+/home/yuye/Resporitory/Compilers/EX4/mandrill-src/04-gcd : FAILED
 0a1,11
 > [digit:55]
 > [op:+]
@@ -18,10 +26,10 @@
 /home/yuye/Resporitory/Compilers/EX4/mandrill-src/12-exprlexer : FAILED
 /home/yuye/Resporitory/Compilers/EX4/mandrill-src/26-string : PASSED
 /home/yuye/Resporitory/Compilers/EX4/mandrill-src/28-scope : PASSED
-1c1
-< 48
----
+0a1
 > 6
 /home/yuye/Resporitory/Compilers/EX4/mandrill-src/29-recursive-gcd : FAILED
-/home/yuye/Resporitory/Compilers/EX4/mandrill-src/30-fibonacci : PASSED
-7
+0a1
+> 21
+/home/yuye/Resporitory/Compilers/EX4/mandrill-src/30-fibonacci : FAILED
+4

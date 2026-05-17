@@ -13,19 +13,9 @@ public class GetI extends Instruction {
     @Override
     public void execute(SimulatorMemory vm) {
         try {
-            System.err.println("GetI: trying to read...");
-            if (vm.getScanner().hasNextLong()) {
-                System.err.println("GetI: hasNextLong true!");
-            } else {
-                System.err.println("GetI: hasNextLong false!");
-            }
             long value = vm.getScanner().nextLong();
-            System.err.println("GetI: read value: " + value);
             vm.getOperandStack().push(value);
-            System.err.println("GetI: pushed to stack, stack now: " + vm.getOperandStack());
         } catch (Exception e) {
-            System.err.println("GetI: Exception occurred!");
-            e.printStackTrace();
             vm.getOperandStack().push(0L);
         }
         vm.instructionDone();
