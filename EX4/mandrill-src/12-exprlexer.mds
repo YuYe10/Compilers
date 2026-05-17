@@ -12,6 +12,12 @@ while (c != 0) {
         put = c;
         put = ']';
         put = '\n';
+        c = get;
+        if ((c >= '0') * (c <= '9')) {
+            put = '[';
+            put = 'd'; put = 'i'; put = 'g'; put = 'i'; put = 't'; put = ':';
+            prefixprinted = 1;
+        }
     }
     if ((c >= '0') * (c <= '9')) {
         if (prefixprinted == 0) {
@@ -29,4 +35,7 @@ while (c != 0) {
         }
     }
     c = get;
+}
+if (prefixprinted == 1) {
+    put = ']';
 }

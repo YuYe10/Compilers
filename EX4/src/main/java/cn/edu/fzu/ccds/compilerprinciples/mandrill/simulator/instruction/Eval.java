@@ -12,15 +12,15 @@ public class Eval extends Instruction {
     public void execute(SimulatorMemory vm) {
         int op = (int) operand;
         if (op == Constants.EVAL_CONDITION) {
-            long cond = vm.getOperandStack().pop();
-            long trueTarget = vm.getOperandStack().pop();
-            long falseTarget = vm.getOperandStack().pop();
+            long falseTarget = vm.getOperandStack().pop(); // 栈顶
+            long trueTarget = vm.getOperandStack().pop(); // 中间
+            long cond = vm.getOperandStack().pop(); // 栈底
             if (cond != 0) {
                 vm.setProgramCounter(trueTarget);
             } else {
                 vm.setProgramCounter(falseTarget);
             }
-            vm.instructionDone();
+            // 不要调用instructionDone！因为我们已经手动设置了PC！
         } else {
             long right = vm.getOperandStack().pop();
             long left = vm.getOperandStack().pop();
@@ -65,5 +65,10 @@ public class Eval extends Instruction {
             vm.getOperandStack().push(result);
             vm.instructionDone();
         }
+    }
+
+    @Override
+    public String toString() {
+        return "Eval(" + Long.toHexString(operand) + ")";
     }
 }

@@ -1,0 +1,4 @@
+# Test case for character to ASCII conversion
+c = get;
+write = c;
+put = '\n';

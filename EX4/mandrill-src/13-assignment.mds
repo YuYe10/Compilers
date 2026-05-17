@@ -1,0 +1,9 @@
+# Test case for assignment operations
+a = 10;
+b = 20;
+c = a + b;
+write = c;
+put = '\n';
+a = c;
+write = a;
+put = '\n';

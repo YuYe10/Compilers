@@ -16,4 +16,9 @@ public class DLoad extends Instruction {
         vm.getOperandStack().push(value);
         vm.instructionDone();
     }
+
+    @Override
+    public String toString() {
+        return "DLoad(" + operand + ")";
+    }
 }

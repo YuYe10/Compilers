@@ -1,0 +1,17 @@
+# Test case for least common multiple
+func gcd(a, b) {
+    while (b != 0) {
+        local temp;
+        temp = b;
+        b = a % b;
+        a = temp;
+    }
+    return a;
+}
+
+func lcm(a, b) {
+    return a / gcd(a, b) * b;
+}
+
+write = lcm(12, 18);
+put = '\n';

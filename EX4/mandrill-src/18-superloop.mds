@@ -1,0 +1,14 @@
+# Test case for nested loops
+i = 0;
+while (i < 3) {
+    j = 0;
+    while (j < 3) {
+        write = i;
+        put = ' ';
+        write = j;
+        put = ' ';
+        j = j + 1;
+    }
+    put = '\n';
+    i = i + 1;
+}

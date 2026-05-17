@@ -1,0 +1,9 @@
+# Test case for sum of even numbers
+sum = 0;
+i = 0;
+while (i < 20) {
+    sum = sum + i;
+    i = i + 2;
+}
+write = sum;
+put = '\n';

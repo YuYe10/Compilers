@@ -3,10 +3,7 @@
 0a1
 > -66060719 -323398799 -743275679
 /home/yuye/Resporitory/Compilers/EX4/mandrill-src/03-expr : FAILED
-1c1
-< 18
-\ 文件末尾没有换行符
----
+0a1
 > 6
 \ 文件末尾没有换行符
 /home/yuye/Resporitory/Compilers/EX4/mandrill-src/04-gcd : FAILED

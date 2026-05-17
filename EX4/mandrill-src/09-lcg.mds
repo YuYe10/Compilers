@@ -1,0 +1,13 @@
+# Test case for linear congruential generator
+seed = 1;
+a = 1103515245;
+c = 12345;
+m = 2147483648;
+i = 0;
+while (i < 5) {
+    seed = (a * seed + c) % m;
+    write = seed % 100;
+    put = ' ';
+    i = i + 1;
+}
+put = '\n';
