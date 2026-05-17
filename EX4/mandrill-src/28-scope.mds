@@ -7,11 +7,11 @@ func test() {
     global d;
 
     d = 70;
-    
+
     local b;   # Local variable in function
     b = 2;
     write = b; put = '\n'; # Access local variable
-    
+
     {
         local c;  # Local variable in inner block
         c = 3;
@@ -19,10 +19,9 @@ func test() {
         write = b; put = '\n'; # Access outer block variable
         write = a; put = '\n'; # Access global variable from within function
     }
-    
+
     write = b; put = '\n';     # Still can access 'b' after inner block
     return a;                  # Return global variable 'a' (value 1)
-    # write = c;   # Error: 'c' is not accessible here
 }
 
-local result; result = test(); write = result; # Call the function and output return value
+local result; result = test(); write = result;

@@ -1,7 +1,7 @@
 # Test case for string copy
-put = '\n';
 a[] = "Hello World";
 write = a;
+put = '\n';
 
 # Implement strcpy function
 func[] strcpy(dest[], src[]) {
