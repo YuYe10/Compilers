@@ -1,0 +1,15 @@
+# Test: function returning array (func[])
+func[] make_array(n) {
+    local i;
+    i = 0;
+    while (i < n) {
+        a[i] = i;
+        i = i + 1;
+    }
+    return a;
+}
+
+a[] = 10;
+b[] = make_array(5);
+write = b[3];
+put = '\n';

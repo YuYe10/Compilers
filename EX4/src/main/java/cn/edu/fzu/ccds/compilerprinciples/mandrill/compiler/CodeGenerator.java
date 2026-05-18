@@ -20,6 +20,9 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
     private String currentLoopEndLabel = null;
     private int currentFunctionParamCount = 0;
     private int currentFunctionLocalCount = 0;
+    private int mainProgramLocalCount = 0;
+    private boolean inFunction = false;
+    private boolean readAsArray = false; // track if read should return array (a[] = read) vs int (a = read)
     private final List<String> stringLiterals;
     private int tempVarIndex = 1000;
 
@@ -37,10 +40,10 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
         visit(tree);
 
         String generated = code.toString();
-        
+
         List<Map.Entry<String, Integer>> entries = new ArrayList<>(labelToAddresses.entrySet());
         entries.sort((a, b) -> b.getKey().length() - a.getKey().length());
-        
+
         for (Map.Entry<String, Integer> entry : entries) {
             String label = entry.getKey();
             int addr = entry.getValue();
@@ -104,17 +107,30 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
         for (MandrillParser.FunctionDefContext funcCtx : ctx.functionDef()) {
             String funcName = funcCtx.Identifier().getText();
             functionStartAddresses.put(funcName, instructionCounter);
+            inFunction = true;
             visitFunctionDef(funcCtx);
+            inFunction = false;
         }
 
         emitLabel("MAIN_START");
 
-        if (currentFunctionLocalCount > 0) {
-            emitConstant(currentFunctionLocalCount * 4);
+        // Reset scope for main program (after function visits polluted the counters)
+        symbolTable.enterScope();
+        mainProgramLocalCount = 0;
+
+        // Pre-scan main program statements to count local variable declarations
+        for (MandrillParser.StatementContext stmtCtx : ctx.statement()) {
+            countMainLocals(stmtCtx);
+        }
+
+        // Allocate space for main program local variables
+        if (mainProgramLocalCount > 0) {
+            emitConstant(mainProgramLocalCount * 4);
             emit("malloc 0");
             emit("setsp 0");
         }
 
+        // Generate code for main program statements
         for (MandrillParser.StatementContext stmtCtx : ctx.statement()) {
             visitStatement(stmtCtx);
         }
@@ -232,6 +248,45 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
         return null;
     }
 
+    /**
+     * Pre-scan statements to count local variable declarations in main program.
+     * This is needed to know the total local size before emitting malloc/setsp.
+     */
+    private void countMainLocals(MandrillParser.StatementContext ctx) {
+        if (ctx.declarationStmt() != null) {
+            MandrillParser.DeclarationStmtContext declCtx = ctx.declarationStmt();
+            if (declCtx.scope != null && declCtx.scope.getText().equals("local")) {
+                mainProgramLocalCount++;
+                // Also need to register the variable in the symbol table
+                String varName = declCtx.Identifier().getText();
+                boolean isArray = declCtx.arraySuffix() != null;
+                symbolTable.addLocalVariable(varName, isArray);
+            }
+        } else if (ctx.loopStatement() != null) {
+            if (ctx.loopStatement().stmtBlock() != null) {
+                for (MandrillParser.StatementContext s : ctx.loopStatement().stmtBlock().statement()) {
+                    countMainLocals(s);
+                }
+            }
+        } else if (ctx.conditionStatement() != null) {
+            MandrillParser.ConditionStatementContext condCtx = ctx.conditionStatement();
+            if (condCtx.thenStatement != null) {
+                for (MandrillParser.StatementContext s : condCtx.thenStatement.statement()) {
+                    countMainLocals(s);
+                }
+            }
+            if (condCtx.elseStatement != null) {
+                for (MandrillParser.StatementContext s : condCtx.elseStatement.statement()) {
+                    countMainLocals(s);
+                }
+            }
+        } else if (ctx.stmtBlock() != null) {
+            for (MandrillParser.StatementContext s : ctx.stmtBlock().statement()) {
+                countMainLocals(s);
+            }
+        }
+    }
+
     @Override
     public Void visitStatement(MandrillParser.StatementContext ctx) {
         if (ctx.declarationStmt() != null) {
@@ -254,14 +309,18 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
     public Void visitDeclarationStmt(MandrillParser.DeclarationStmtContext ctx) {
         String varName = ctx.Identifier().getText();
         boolean isArray = ctx.arraySuffix() != null;
-        
+
         if (ctx.scope != null && ctx.scope.getText().equals("local")) {
-            SymbolTable.SymbolInfo info = symbolTable.addLocalVariable(varName, isArray);
-            currentFunctionLocalCount++;
+            if (inFunction) {
+                SymbolTable.SymbolInfo info = symbolTable.addLocalVariable(varName, isArray);
+                currentFunctionLocalCount++;
+            }
+            // For main program, local variables are already pre-scanned by
+            // countMainLocals()
         } else if (ctx.scope != null && ctx.scope.getText().equals("global")) {
             symbolTable.addGlobalVariable(varName, isArray);
         }
-        
+
         return null;
     }
 
@@ -276,7 +335,9 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
                         MandrillParser.SourceVariableContext sourceVarCtx = (MandrillParser.SourceVariableContext) rhsExpr;
                         String varName = sourceVarCtx.Identifier().getText();
                         SymbolTable.SymbolInfo info = symbolTable.lookup(varName);
-                        if (info != null && info.valueType == SymbolTable.ValueType.ARRAY_TYPE) {
+                        // Only use puts for whole array (no subscript), not for a[i]
+                        if (info != null && info.valueType == SymbolTable.ValueType.ARRAY_TYPE
+                                && sourceVarCtx.expression() == null) {
                             visitExpression(rhsExpr);
                             emit("puts 0");
                             return null;
@@ -303,14 +364,15 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
                         strValue = strValue.substring(1, strValue.length() - 1);
                         int stringIndex = stringLiterals.size();
                         stringLiterals.add(strValue);
-                        emitConstant((strValue.length() + 1) * 4);
+                        emitConstant((strValue.codePointCount(0, strValue.length()) + 1) * 4);
                         emit("malloc 0");
                         int tempIndex = tempVarIndex++;
                         emit("dwrite " + tempIndex);
                         int i = 0;
-                        for (char c : strValue.toCharArray()) {
+                        int[] codePoints = strValue.codePoints().toArray();
+                        for (int cp : codePoints) {
                             emit("dload " + tempIndex);
-                            emitConstant((int) c);
+                            emitConstant(cp);
                             emit("dawrite " + (i * 4));
                             i++;
                         }
@@ -319,13 +381,36 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
                         emit("dawrite " + (i * 4));
                         emit("dload " + tempIndex);
                     } else {
-                        visitExpression(rhsExpr);
+                        // Check if reading string into existing array variable: a = read; where a is
+                        // array
+                        if (rhsExpr instanceof MandrillParser.InputIntContext
+                                && info != null && info.valueType == SymbolTable.ValueType.ARRAY_TYPE) {
+                            emit("gets 0");
+                        } else {
+                            visitExpression(rhsExpr);
+                        }
                     }
 
                     if (targetCtx.expression() != null) {
+                        // Array subscript write: a[expr] = value
+                        // value is already on operand stack from visitExpression(rhsExpr)
+                        // Push base address of array
+                        if (info != null && info.kind == SymbolTable.SymbolKind.GLOBAL_VAR) {
+                            emit("dload " + info.index);
+                        } else if (info != null && (info.kind == SymbolTable.SymbolKind.LOCAL_VAR
+                                || info.kind == SymbolTable.SymbolKind.PARAM)) {
+                            emit("dlload " + info.localOffset);
+                        }
+                        // Push index value
                         visitExpression(targetCtx.expression());
-                        emit("daload 0");
+                        // Multiply index by element size (4 bytes)
+                        emitConstant(4);
+                        emit("eval " + Constants.EVAL_MUL);
+                        // Add base address + offset
+                        emit("eval " + Constants.EVAL_ADD);
+                        // Stack: value, address -> swap to address, value
                         emit("swap");
+                        // Write value to computed address
                         emit("dawrite 0");
                     } else if (info != null && info.kind == SymbolTable.SymbolKind.GLOBAL_VAR) {
                         emit("dwrite " + info.index);
@@ -341,20 +426,21 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
 
             if (ctx.rvalue() != null && ctx.rvalue().expression() != null) {
                 MandrillParser.ExpressionContext rhsExpr = ctx.rvalue().expression();
-                
+
                 if (rhsExpr instanceof MandrillParser.StringLiteralContext) {
                     String strValue = rhsExpr.getText();
                     strValue = strValue.substring(1, strValue.length() - 1);
                     int stringIndex = stringLiterals.size();
                     stringLiterals.add(strValue);
-                    emitConstant((strValue.length() + 1) * 4);
+                    emitConstant((strValue.codePointCount(0, strValue.length()) + 1) * 4);
                     emit("malloc 0");
                     int tempIndex = tempVarIndex++;
                     emit("dwrite " + tempIndex);
                     int i = 0;
-                    for (char c : strValue.toCharArray()) {
+                    int[] codePoints = strValue.codePoints().toArray();
+                    for (int cp : codePoints) {
                         emit("dload " + tempIndex);
-                        emitConstant((int) c);
+                        emitConstant(cp);
                         emit("dawrite " + (i * 4));
                         i++;
                     }
@@ -362,9 +448,29 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
                     emitConstant(0);
                     emit("dawrite " + (i * 4));
                     emit("dload " + tempIndex);
-                } else {
+                } else if (rhsExpr instanceof MandrillParser.InputIntContext) {
+                    // a[] = read; -> read string into array
+                    // a = read; -> read integer
+                    if (ctx.arraySuffix() != null) {
+                        // Array read: use gets to read string
+                        emit("gets 0");
+                    } else {
+                        // Integer read: use geti, then allocate
+                        emit("geti 0");
+                        emitConstant(4);
+                        emit("eval " + Constants.EVAL_MUL);
+                        emit("malloc 0");
+                    }
+                } else if (rhsExpr instanceof MandrillParser.IntLiteralContext) {
+                    // Array allocation: a[] = N; -> allocate N elements (N * 4 bytes)
                     visitExpression(rhsExpr);
+                    emitConstant(4);
+                    emit("eval " + Constants.EVAL_MUL);
                     emit("malloc 0");
+                } else {
+                    // Array reassignment: a[] = otherArray; or a[] = f(...); -> just store the
+                    // value
+                    visitExpression(rhsExpr);
                 }
 
                 if (info != null && info.kind == SymbolTable.SymbolKind.GLOBAL_VAR) {
@@ -503,13 +609,22 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
             SymbolTable.SymbolInfo info = symbolTable.lookup(varName);
 
             if (sourceVarCtx.expression() != null) {
+                // Array subscript read: a[expr]
+                // Push base address of array
                 if (info != null && info.kind == SymbolTable.SymbolKind.GLOBAL_VAR) {
                     emit("dload " + info.index);
                 } else if (info != null && (info.kind == SymbolTable.SymbolKind.LOCAL_VAR
                         || info.kind == SymbolTable.SymbolKind.PARAM)) {
                     emit("dlload " + info.localOffset);
                 }
+                // Push index value
                 visitExpression(sourceVarCtx.expression());
+                // Multiply index by element size (4 bytes)
+                emitConstant(4);
+                emit("eval " + Constants.EVAL_MUL);
+                // Add base address + offset
+                emit("eval " + Constants.EVAL_ADD);
+                // Read from computed address
                 emit("daload 0");
             } else {
                 if (info != null && info.kind == SymbolTable.SymbolKind.GLOBAL_VAR) {
@@ -541,7 +656,8 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
             emit("getc 0");
         } else if (ctx instanceof MandrillParser.AddSubExpressionContext) {
             MandrillParser.AddSubExpressionContext addSubCtx = (MandrillParser.AddSubExpressionContext) ctx;
-            if (addSubCtx.Plus() != null && inConditionExpression && isBooleanExpression(addSubCtx.expression(0)) && isBooleanExpression(addSubCtx.expression(1))) {
+            if (addSubCtx.Plus() != null && inConditionExpression && isBooleanExpression(addSubCtx.expression(0))
+                    && isBooleanExpression(addSubCtx.expression(1))) {
                 String hasValueLabel = newLabel();
                 String needEvalLabel = newLabel();
                 String endLabel = newLabel();
@@ -568,7 +684,8 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
             }
         } else if (ctx instanceof MandrillParser.MulDivModExpressionContext) {
             MandrillParser.MulDivModExpressionContext mulDivCtx = (MandrillParser.MulDivModExpressionContext) ctx;
-            if (mulDivCtx.Star() != null && inConditionExpression && isBooleanExpression(mulDivCtx.expression(0)) && isBooleanExpression(mulDivCtx.expression(1))) {
+            if (mulDivCtx.Star() != null && inConditionExpression && isBooleanExpression(mulDivCtx.expression(0))
+                    && isBooleanExpression(mulDivCtx.expression(1))) {
                 String falseLabel = newLabel();
                 String continueLabel = newLabel();
                 String endLabel = newLabel();
@@ -631,7 +748,7 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
     }
 
     private boolean isBooleanExpression(MandrillParser.ExpressionContext ctx) {
-        return ctx instanceof MandrillParser.ComparingExpressionContext 
-            || ctx instanceof MandrillParser.EqualityExpressionContext;
+        return ctx instanceof MandrillParser.ComparingExpressionContext
+                || ctx instanceof MandrillParser.EqualityExpressionContext;
     }
 }

@@ -3,7 +3,7 @@ package cn.edu.fzu.ccds.compilerprinciples.mandrill.simulator.instruction;
 import cn.edu.fzu.ccds.compilerprinciples.mandrill.simulator.SimulatorMemory;
 
 /**
- * gets: 从 stdin 读入一个连续非空白字符构成的字符串，
+ * gets: 从 stdin 读入一行字符串，
  * 在堆上按 UTF-32（4字节/字符，0结尾）存储，将地址压入栈。
  */
 public class Gets extends Instruction {
@@ -13,7 +13,7 @@ public class Gets extends Instruction {
 
     @Override
     public void execute(SimulatorMemory vm) {
-        String str = vm.getScanner().next();
+        String str = vm.getScanner().nextLine();
         int[] codePoints = str.codePoints().toArray();
         int len = codePoints.length;
         int bytes = (len + 1) * 4;

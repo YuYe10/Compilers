@@ -120,7 +120,8 @@ public class SymbolTable {
     public SymbolInfo addLocalVariable(String name, boolean isArray) {
         SymbolInfo info = new SymbolInfo(name, SymbolKind.LOCAL_VAR,
                 isArray ? ValueType.ARRAY_TYPE : ValueType.INT, localVarCount++, isArray);
-        info.localOffset = (localVarCount - 1);
+        // Local offsets start after parameters: paramCount + localIndex
+        info.localOffset = paramCount + (localVarCount - 1);
         currentLocalSymbols.put(name, info);
         return info;
     }
