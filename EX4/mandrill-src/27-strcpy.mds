@@ -2,7 +2,7 @@
 a[] = "Hello World";
 
 # Implement strcpy function
-func[] strcpy(dest[], src) {
+func[] strcpy(dest, src) {
     local i;
     i = 0;
     while (src[i] != 0) {
