@@ -1,5 +1,5 @@
 # Test case for string copy
-a[] = "Hello World";
+a[] = "Hello World\n";
 write = a;
 put = '\n';
 

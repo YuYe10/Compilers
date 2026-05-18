@@ -364,12 +364,12 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
                         strValue = strValue.substring(1, strValue.length() - 1);
                         int stringIndex = stringLiterals.size();
                         stringLiterals.add(strValue);
-                        emitConstant((strValue.codePointCount(0, strValue.length()) + 1) * 4);
+                        int[] codePoints = processStringEscape(strValue);
+                        emitConstant((codePoints.length + 1) * 4);
                         emit("malloc 0");
                         int tempIndex = tempVarIndex++;
                         emit("dwrite " + tempIndex);
                         int i = 0;
-                        int[] codePoints = strValue.codePoints().toArray();
                         for (int cp : codePoints) {
                             emit("dload " + tempIndex);
                             emitConstant(cp);
@@ -432,12 +432,12 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
                     strValue = strValue.substring(1, strValue.length() - 1);
                     int stringIndex = stringLiterals.size();
                     stringLiterals.add(strValue);
-                    emitConstant((strValue.codePointCount(0, strValue.length()) + 1) * 4);
+                    int[] codePoints = processStringEscape(strValue);
+                    emitConstant((codePoints.length + 1) * 4);
                     emit("malloc 0");
                     int tempIndex = tempVarIndex++;
                     emit("dwrite " + tempIndex);
                     int i = 0;
-                    int[] codePoints = strValue.codePoints().toArray();
                     for (int cp : codePoints) {
                         emit("dload " + tempIndex);
                         emitConstant(cp);
@@ -592,16 +592,8 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
             MandrillParser.CharLiteralContext charCtx = (MandrillParser.CharLiteralContext) ctx;
             String charStr = charCtx.getText();
             charStr = charStr.substring(1, charStr.length() - 1);
-            int charValue;
-            if (charStr.equals("\\n")) {
-                charValue = '\n';
-            } else if (charStr.equals("\\\\")) {
-                charValue = '\\';
-            } else if (charStr.equals("\\'")) {
-                charValue = '\'';
-            } else {
-                charValue = charStr.charAt(0);
-            }
+            int[] cps = processStringEscape(charStr);
+            int charValue = (cps.length > 0) ? cps[0] : 0;
             emitConstant(charValue);
         } else if (ctx instanceof MandrillParser.SourceVariableContext) {
             MandrillParser.SourceVariableContext sourceVarCtx = (MandrillParser.SourceVariableContext) ctx;
@@ -750,5 +742,77 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
     private boolean isBooleanExpression(MandrillParser.ExpressionContext ctx) {
         return ctx instanceof MandrillParser.ComparingExpressionContext
                 || ctx instanceof MandrillParser.EqualityExpressionContext;
+    }
+
+    /**
+     * Process escape sequences in a raw string (as returned by ANTLR's getText()).
+     * The grammar's SimpleEscapeSequence matches \n, \t, \\, etc. as literal
+     * characters, so we need to convert them to their actual code points.
+     */
+    private int[] processStringEscape(String raw) {
+        List<Integer> codePoints = new ArrayList<>();
+        int len = raw.length();
+        for (int i = 0; i < len; i++) {
+            char c = raw.charAt(i);
+            if (c == '\\' && i + 1 < len) {
+                char next = raw.charAt(i + 1);
+                switch (next) {
+                    case 'n':
+                        codePoints.add((int) '\n');
+                        i++;
+                        break;
+                    case 't':
+                        codePoints.add((int) '\t');
+                        i++;
+                        break;
+                    case 'r':
+                        codePoints.add((int) '\r');
+                        i++;
+                        break;
+                    case '\\':
+                        codePoints.add((int) '\\');
+                        i++;
+                        break;
+                    case '\'':
+                        codePoints.add((int) '\'');
+                        i++;
+                        break;
+                    case '"':
+                        codePoints.add((int) '"');
+                        i++;
+                        break;
+                    case '0':
+                        codePoints.add((int) '\0');
+                        i++;
+                        break;
+                    case 'a':
+                        codePoints.add(0x07);
+                        i++;
+                        break; // bell
+                    case 'b':
+                        codePoints.add((int) '\b');
+                        i++;
+                        break;
+                    case 'f':
+                        codePoints.add((int) '\f');
+                        i++;
+                        break;
+                    case 'v':
+                        codePoints.add(0x0B);
+                        i++;
+                        break; // vertical tab
+                    case '?':
+                        codePoints.add((int) '?');
+                        i++;
+                        break;
+                    default:
+                        codePoints.add((int) c);
+                        break; // keep backslash as-is
+                }
+            } else {
+                codePoints.add((int) c);
+            }
+        }
+        return codePoints.stream().mapToInt(Integer::intValue).toArray();
     }
 }
