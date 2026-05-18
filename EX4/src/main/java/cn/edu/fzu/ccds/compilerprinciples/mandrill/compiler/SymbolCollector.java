@@ -98,8 +98,12 @@ public class SymbolCollector extends MandrillBaseVisitor<Void> {
                 MandrillParser.TargetVariableContext targetCtx = (MandrillParser.TargetVariableContext) lvalueCtx;
                 String varName = targetCtx.Identifier().getText();
                 boolean isArray = targetCtx.expression() != null;
-                if (symbolTable.lookup(varName) == null) {
+                SymbolTable.SymbolInfo info = symbolTable.lookup(varName);
+                if (info == null) {
                     symbolTable.addGlobalVariable(varName, isArray);
+                } else if (isArray) {
+                    // Late type binding: if used with subscript, mark as array
+                    info.isArray = true;
                 }
                 if (targetCtx.expression() != null) {
                     visitExpression(targetCtx.expression());
@@ -147,10 +151,15 @@ public class SymbolCollector extends MandrillBaseVisitor<Void> {
         if (ctx instanceof MandrillParser.SourceVariableContext) {
             MandrillParser.SourceVariableContext sourceVarCtx = (MandrillParser.SourceVariableContext) ctx;
             String varName = sourceVarCtx.Identifier().getText();
-            if (symbolTable.lookup(varName) == null) {
+            SymbolTable.SymbolInfo info = symbolTable.lookup(varName);
+            if (info == null) {
                 symbolTable.addGlobalVariable(varName, false);
             }
+            // If used with subscript, mark as array (late type binding)
             if (sourceVarCtx.expression() != null) {
+                if (info != null) {
+                    info.isArray = true;
+                }
                 visitExpression(sourceVarCtx.expression());
             }
         } else if (ctx instanceof MandrillParser.FunctionCallContext) {

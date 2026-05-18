@@ -20,9 +20,9 @@ public class SymbolTable {
     public static class SymbolInfo {
         public final String name;
         public final SymbolKind kind;
-        public final ValueType valueType;
+        public ValueType valueType;
         public final int index;
-        public final boolean isArray;
+        public boolean isArray;
         public int localOffset;
 
         public SymbolInfo(String name, SymbolKind kind, ValueType valueType, int index, boolean isArray) {

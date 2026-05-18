@@ -101,10 +101,9 @@ public class SemanticChecker extends MandrillBaseVisitor<Void> {
             if (info == null) {
                 throw new SemanticError("Undefined variable: " + varName);
             }
-            if (targetCtx.expression() != null && !info.isArray) {
-                throw new SemanticError("Variable '" + varName + "' is not an array");
-            }
+            // Late type binding: allow subscript on any variable (arrays are pointers)
             if (targetCtx.expression() != null) {
+                info.isArray = true;
                 visitExpression(targetCtx.expression());
             }
         }
@@ -158,10 +157,9 @@ public class SemanticChecker extends MandrillBaseVisitor<Void> {
             if (info == null) {
                 throw new SemanticError("Undefined variable: " + varName);
             }
-            if (sourceVarCtx.expression() != null && !info.isArray) {
-                throw new SemanticError("Variable '" + varName + "' is not an array");
-            }
+            // Late type binding: allow subscript on any variable (arrays are pointers)
             if (sourceVarCtx.expression() != null) {
+                info.isArray = true;
                 visitExpression(sourceVarCtx.expression());
             }
         } else if (ctx instanceof MandrillParser.FunctionCallContext) {
