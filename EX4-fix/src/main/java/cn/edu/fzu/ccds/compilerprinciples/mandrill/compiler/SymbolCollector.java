@@ -4,12 +4,17 @@ import cn.edu.fzu.ccds.compilerprinciples.mandrill.antlr.MandrillBaseVisitor;
 import cn.edu.fzu.ccds.compilerprinciples.mandrill.antlr.MandrillParser;
 import org.antlr.v4.runtime.tree.ParseTree;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.List;
 
 public final class SymbolCollector extends MandrillBaseVisitor<Void> {
 
     private final SymbolTable table;
     private SymbolTable.FunctionSymbol currentFunction;
+    private final Deque<Map<String, SymbolTable.VariableSymbol>> scopeStack = new ArrayDeque<>();
 
     private SymbolCollector(SymbolTable table) {
         this.table = table;
@@ -61,8 +66,24 @@ public final class SymbolCollector extends MandrillBaseVisitor<Void> {
     @Override
     public Void visitFunctionDef(MandrillParser.FunctionDefContext ctx) {
         currentFunction = table.resolveFunction(ctx.Identifier().getText());
+        pushScope();
+        for (SymbolTable.VariableSymbol parameterSymbol : currentFunction.getParameterOrder()) {
+            currentScope().put(parameterSymbol.getName(), parameterSymbol);
+        }
         visit(ctx.stmtBlock());
+        popScope();
         currentFunction = null;
+        return null;
+    }
+
+    @Override
+    public Void visitStmtBlock(MandrillParser.StmtBlockContext ctx) {
+        if (currentFunction == null) {
+            return visitChildren(ctx);
+        }
+        pushScope();
+        visitChildren(ctx);
+        popScope();
         return null;
     }
 
@@ -83,7 +104,13 @@ public final class SymbolCollector extends MandrillBaseVisitor<Void> {
         if (currentFunction == null || ctx.scope.getType() == MandrillParser.Global) {
             table.defineGlobal(name, kind);
         } else {
-            table.defineLocal(currentFunction, name, kind);
+            if (currentScope().containsKey(name)) {
+                throw new IllegalStateException(
+                        "Duplicate local: " + name + " in function " + currentFunction.getName());
+            }
+            SymbolTable.VariableSymbol symbol = table.defineLocal(currentFunction, name, kind);
+            currentScope().put(name, symbol);
+            table.registerDeclaredVariable(currentFunction, ctx, symbol);
         }
         return null;
     }
@@ -109,17 +136,43 @@ public final class SymbolCollector extends MandrillBaseVisitor<Void> {
     }
 
     private void resolveVariableUse(String name, boolean indexed, MandrillParser.ExpressionContext indexExpression) {
-        if (currentFunction != null) {
-            if (currentFunction.getLocals().containsKey(name) || currentFunction.getParameters().containsKey(name)) {
-                if (indexExpression != null) {
-                    visit(indexExpression);
-                }
-                return;
+        if (currentFunction != null && resolveVisible(name) != null) {
+            if (indexExpression != null) {
+                visit(indexExpression);
             }
+            return;
         }
         table.defineGlobal(name, indexed ? SymbolTable.ValueKind.ARRAY : SymbolTable.ValueKind.INT);
         if (indexExpression != null) {
             visit(indexExpression);
         }
+    }
+
+    private SymbolTable.VariableSymbol resolveVisible(String name) {
+        for (Map<String, SymbolTable.VariableSymbol> scope : scopeStack) {
+            SymbolTable.VariableSymbol symbol = scope.get(name);
+            if (symbol != null) {
+                return symbol;
+            }
+        }
+        return null;
+    }
+
+    private void pushScope() {
+        scopeStack.push(new LinkedHashMap<>());
+    }
+
+    private void popScope() {
+        if (scopeStack.isEmpty()) {
+            throw new IllegalStateException("Scope stack underflow");
+        }
+        scopeStack.pop();
+    }
+
+    private Map<String, SymbolTable.VariableSymbol> currentScope() {
+        if (scopeStack.isEmpty()) {
+            throw new IllegalStateException("No active scope");
+        }
+        return scopeStack.peek();
     }
 }

@@ -1,6 +1,7 @@
 package cn.edu.fzu.ccds.compilerprinciples.mandrill.compiler;
 
 import cn.edu.fzu.ccds.compilerprinciples.mandrill.antlr.MandrillParser;
+import org.antlr.v4.runtime.tree.ParseTree;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -43,8 +44,8 @@ public class SymbolTable {
         private final ValueKind returnKind;
         private final MandrillParser.FunctionDefContext context;
         private final LinkedHashMap<String, VariableSymbol> parameters = new LinkedHashMap<>();
-        private final LinkedHashMap<String, VariableSymbol> locals = new LinkedHashMap<>();
         private final List<VariableSymbol> parameterOrder = new ArrayList<>();
+        private final Map<ParseTree, VariableSymbol> declaredVariables = new LinkedHashMap<>();
         private int nextLocalIndex = 0;
         private int frameSizeBytes = 4;
 
@@ -70,12 +71,12 @@ public class SymbolTable {
             return parameters;
         }
 
-        public Map<String, VariableSymbol> getLocals() {
-            return locals;
-        }
-
         public List<VariableSymbol> getParameterOrder() {
             return parameterOrder;
+        }
+
+        public VariableSymbol getDeclaredVariable(ParseTree declarationContext) {
+            return declaredVariables.get(declarationContext);
         }
 
         public int getFrameSizeBytes() {
@@ -83,7 +84,7 @@ public class SymbolTable {
         }
 
         private VariableSymbol defineParameter(String variableName, ValueKind kind) {
-            if (parameters.containsKey(variableName) || locals.containsKey(variableName)) {
+            if (parameters.containsKey(variableName)) {
                 throw new IllegalStateException("Duplicate parameter: " + variableName + " in function " + name);
             }
             VariableSymbol symbol = new VariableSymbol(variableName, kind, nextLocalIndex++);
@@ -94,13 +95,13 @@ public class SymbolTable {
         }
 
         private VariableSymbol defineLocal(String variableName, ValueKind kind) {
-            if (parameters.containsKey(variableName) || locals.containsKey(variableName)) {
-                throw new IllegalStateException("Duplicate local: " + variableName + " in function " + name);
-            }
             VariableSymbol symbol = new VariableSymbol(variableName, kind, nextLocalIndex++);
-            locals.put(variableName, symbol);
             updateFrameSize();
             return symbol;
+        }
+
+        private void registerDeclaredVariable(ParseTree declarationContext, VariableSymbol symbol) {
+            declaredVariables.put(declarationContext, symbol);
         }
 
         private void updateFrameSize() {
@@ -184,5 +185,9 @@ public class SymbolTable {
 
     VariableSymbol defineLocal(FunctionSymbol functionSymbol, String name, ValueKind kind) {
         return functionSymbol.defineLocal(name, kind);
+    }
+
+    void registerDeclaredVariable(FunctionSymbol functionSymbol, ParseTree declarationContext, VariableSymbol symbol) {
+        functionSymbol.registerDeclaredVariable(declarationContext, symbol);
     }
 }

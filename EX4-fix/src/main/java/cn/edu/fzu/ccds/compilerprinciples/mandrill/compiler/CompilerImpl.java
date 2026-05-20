@@ -32,6 +32,7 @@ public final class CompilerImpl implements Compiler {
         private final List<InstructionLine> instructions = new ArrayList<>();
         private final Map<String, Label> labels = new LinkedHashMap<>();
         private final Deque<LoopContext> loopStack = new ArrayDeque<>();
+        private final Deque<Map<String, VariableSymbol>> scopeStack = new ArrayDeque<>();
         private int labelCounter = 0;
 
         private AssemblyBuilder(SymbolTable table) {
@@ -61,11 +62,23 @@ public final class CompilerImpl implements Compiler {
 
             mark(mainLabel);
 
+            boolean hasExecutableGlobal = false;
             for (int index = 0; index < programContext.getChildCount(); index++) {
                 ParseTree child = programContext.getChild(index);
                 if (child instanceof MandrillParser.StatementContext) {
                     MandrillParser.StatementContext statementContext = (MandrillParser.StatementContext) child;
+                    if (statementContext.declarationStmt() == null) {
+                        hasExecutableGlobal = true;
+                    }
                     compileStatement(statementContext, null);
+                }
+            }
+
+            if (!hasExecutableGlobal) {
+                FunctionSymbol mainFunction = table.resolveFunction("main");
+                if (mainFunction != null) {
+                    emit("dstore", mainFunction.getFrameSizeBytes());
+                    emit("jal", functionLabel("main"));
                 }
             }
 
@@ -80,6 +93,11 @@ public final class CompilerImpl implements Compiler {
 
             mark(functionLabel(functionSymbol.getName()));
 
+            pushScope();
+            for (VariableSymbol parameterSymbol : functionSymbol.getParameterOrder()) {
+                currentScope().put(parameterSymbol.getName(), parameterSymbol);
+            }
+
             for (VariableSymbol parameterSymbol : functionSymbol.getParameterOrder()) {
                 emit("dlwrite", parameterSymbol.getIndex());
             }
@@ -87,12 +105,15 @@ public final class CompilerImpl implements Compiler {
             compileStmtBlock(functionContext.stmtBlock(), functionSymbol);
             emit("dstore", 0);
             emit("ret", 0);
+            popScope();
         }
 
         private void compileStmtBlock(MandrillParser.StmtBlockContext blockContext, FunctionSymbol functionSymbol) {
+            pushScope();
             for (MandrillParser.StatementContext statementContext : blockContext.statement()) {
                 compileStatement(statementContext, functionSymbol);
             }
+            popScope();
         }
 
         private void compileStatement(MandrillParser.StatementContext statementContext, FunctionSymbol functionSymbol) {
@@ -113,6 +134,16 @@ public final class CompilerImpl implements Compiler {
                 return;
             }
             if (statementContext.declarationStmt() != null) {
+                if (functionSymbol != null
+                        && statementContext.declarationStmt().scope.getType() == MandrillParser.Local) {
+                    VariableSymbol declaredSymbol = functionSymbol
+                            .getDeclaredVariable(statementContext.declarationStmt());
+                    if (declaredSymbol == null) {
+                        throw new IllegalStateException("Missing declared symbol for local: "
+                                + statementContext.declarationStmt().Identifier().getText());
+                    }
+                    currentScope().put(declaredSymbol.getName(), declaredSymbol);
+                }
                 return;
             }
             if (statementContext.stmtBlock() != null) {
@@ -439,13 +470,11 @@ public final class CompilerImpl implements Compiler {
 
         private ResolvedVariable resolveVariable(FunctionSymbol functionSymbol, String name) {
             if (functionSymbol != null) {
-                VariableSymbol local = functionSymbol.getLocals().get(name);
-                if (local != null) {
-                    return new ResolvedVariable(local, true);
-                }
-                VariableSymbol parameter = functionSymbol.getParameters().get(name);
-                if (parameter != null) {
-                    return new ResolvedVariable(parameter, true);
+                for (Map<String, VariableSymbol> scope : scopeStack) {
+                    VariableSymbol symbol = scope.get(name);
+                    if (symbol != null) {
+                        return new ResolvedVariable(symbol, true);
+                    }
                 }
             }
             VariableSymbol global = table.resolveGlobal(name);
@@ -453,6 +482,24 @@ public final class CompilerImpl implements Compiler {
                 throw new IllegalStateException("Undefined variable: " + name);
             }
             return new ResolvedVariable(global, false);
+        }
+
+        private void pushScope() {
+            scopeStack.push(new LinkedHashMap<>());
+        }
+
+        private void popScope() {
+            if (scopeStack.isEmpty()) {
+                throw new IllegalStateException("Scope stack underflow");
+            }
+            scopeStack.pop();
+        }
+
+        private Map<String, VariableSymbol> currentScope() {
+            if (scopeStack.isEmpty()) {
+                throw new IllegalStateException("No active scope");
+            }
+            return scopeStack.peek();
         }
 
         private void emitJump(Label label) {
