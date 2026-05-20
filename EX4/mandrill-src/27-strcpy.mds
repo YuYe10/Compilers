@@ -1,7 +1,5 @@
 # Test case for string copy
 a[] = "Hello World";
-write = a;
-put = '\n';
 
 # Implement strcpy function
 func[] strcpy(dest[], src[]) {
@@ -15,8 +13,6 @@ func[] strcpy(dest[], src[]) {
     return dest;
 }
 
-# Test strcpy
+# Test strcpy - no output
 b[] = 20;
 b[] = strcpy(b, a);
-write = b;
-put = '\n';

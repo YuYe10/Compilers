@@ -7,7 +7,7 @@ ansdir=$(pwd)/mandrill-ans
 log_file=$(pwd)/$1
 debug_log_file=$(pwd)/debug.log
 make clean
-make 
+make
 cd build || (echo 0 >>"$log_file" && exit 0) # 如果编译失败，直接输出0分并退出
 score=0
 full_score=0

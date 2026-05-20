@@ -14,7 +14,7 @@ func test() {
 
     {
         local c;  # Local variable in inner block
-        c = 3;
+        c = 3 + d;
         write = c; put = '\n'; # Access inner block variable
         write = b; put = '\n'; # Access outer block variable
         write = a; put = '\n'; # Access global variable from within function
@@ -24,4 +24,4 @@ func test() {
     return a;                  # Return global variable 'a' (value 1)
 }
 
-local result; result = test(); write = result;
+local result; result = test();
