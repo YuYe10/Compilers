@@ -1,0 +1,14 @@
+func f() {
+    local a;
+    a = 50;
+    write = a;
+    return 0;
+}
+
+func main() {
+    local a;
+    a = 0;
+    write = a;
+    a = f();
+    write = a;
+}

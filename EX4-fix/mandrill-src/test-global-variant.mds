@@ -1,0 +1,6 @@
+global a;
+func main(){
+    a = 1;
+    a[] = "x";
+    write = a;
+}

@@ -43,28 +43,48 @@ public class AssemblyParser {
             operand = parseOperand(parts[1]);
         }
 
-        return switch (name) {
-            case "nop" -> new Nop(operand);
-            case "dstore" -> new DStore(operand);
-            case "dload" -> new DLoad(operand);
-            case "dlload" -> new DLLoad(operand);
-            case "daload" -> new DALoad(operand);
-            case "dwrite" -> new DWrite(operand);
-            case "dlwrite" -> new DLWrite(operand);
-            case "dawrite" -> new DAWrite(operand);
-            case "eval" -> new Eval(operand);
-            case "jump" -> new Jump(operand);
-            case "jal" -> new Jal(operand);
-            case "ret" -> new Ret(operand);
-            case "malloc" -> new Malloc(operand);
-            case "geti" -> new GetI(operand);
-            case "getc" -> new GetC(operand);
-            case "gets" -> new Gets(operand);
-            case "puti" -> new PutI(operand);
-            case "putc" -> new PutC(operand);
-            case "puts" -> new PutS(operand);
-            default -> throw new IllegalArgumentException("Unknown instruction: " + name);
-        };
+        switch (name) {
+            case "nop":
+                return new Nop(operand);
+            case "dstore":
+                return new DStore(operand);
+            case "dload":
+                return new DLoad(operand);
+            case "dlload":
+                return new DLLoad(operand);
+            case "daload":
+                return new DALoad(operand);
+            case "dwrite":
+                return new DWrite(operand);
+            case "dlwrite":
+                return new DLWrite(operand);
+            case "dawrite":
+                return new DAWrite(operand);
+            case "eval":
+                return new Eval(operand);
+            case "jump":
+                return new Jump(operand);
+            case "jal":
+                return new Jal(operand);
+            case "ret":
+                return new Ret(operand);
+            case "malloc":
+                return new Malloc(operand);
+            case "geti":
+                return new GetI(operand);
+            case "getc":
+                return new GetC(operand);
+            case "gets":
+                return new Gets(operand);
+            case "puti":
+                return new PutI(operand);
+            case "putc":
+                return new PutC(operand);
+            case "puts":
+                return new PutS(operand);
+            default:
+                throw new IllegalArgumentException("Unknown instruction: " + name);
+        }
     }
 
     private static long parseOperand(String s) {

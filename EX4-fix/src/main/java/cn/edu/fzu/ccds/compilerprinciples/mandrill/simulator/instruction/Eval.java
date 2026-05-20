@@ -26,20 +26,44 @@ public class Eval extends Instruction {
         } else {
             long right = vm.getOperandStack().pop();
             long left = vm.getOperandStack().pop();
-            long result = switch (op) {
-                case Constants.EVAL_ADD -> left + right;
-                case Constants.EVAL_MINUS -> left - right;
-                case Constants.EVAL_MUL -> left * right;
-                case Constants.EVAL_DIV -> left / right;
-                case Constants.EVAL_MOD -> left % right;
-                case Constants.EVAL_GREATER -> left > right ? 1L : 0L;
-                case Constants.EVAL_LESS -> left < right ? 1L : 0L;
-                case Constants.EVAL_GREATER_OR_EQUAL -> left >= right ? 1L : 0L;
-                case Constants.EVAL_LESS_OR_EQUAL -> left <= right ? 1L : 0L;
-                case Constants.EVAL_EQUAL -> left == right ? 1L : 0L;
-                case Constants.EVAL_NOT_EQUAL -> left != right ? 1L : 0L;
-                default -> throw new IllegalStateException("Unexpected eval operand: 0x" + Integer.toHexString(op));
-            };
+            long result;
+            switch (op) {
+                case Constants.EVAL_ADD:
+                    result = left + right;
+                    break;
+                case Constants.EVAL_MINUS:
+                    result = left - right;
+                    break;
+                case Constants.EVAL_MUL:
+                    result = left * right;
+                    break;
+                case Constants.EVAL_DIV:
+                    result = left / right;
+                    break;
+                case Constants.EVAL_MOD:
+                    result = left % right;
+                    break;
+                case Constants.EVAL_GREATER:
+                    result = left > right ? 1L : 0L;
+                    break;
+                case Constants.EVAL_LESS:
+                    result = left < right ? 1L : 0L;
+                    break;
+                case Constants.EVAL_GREATER_OR_EQUAL:
+                    result = left >= right ? 1L : 0L;
+                    break;
+                case Constants.EVAL_LESS_OR_EQUAL:
+                    result = left <= right ? 1L : 0L;
+                    break;
+                case Constants.EVAL_EQUAL:
+                    result = left == right ? 1L : 0L;
+                    break;
+                case Constants.EVAL_NOT_EQUAL:
+                    result = left != right ? 1L : 0L;
+                    break;
+                default:
+                    throw new IllegalStateException("Unexpected eval operand: 0x" + Integer.toHexString(op));
+            }
             vm.getOperandStack().push(result);
             vm.instructionDone();
         }
