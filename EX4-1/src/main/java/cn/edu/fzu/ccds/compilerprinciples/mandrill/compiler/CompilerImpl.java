@@ -25,7 +25,7 @@ public class CompilerImpl implements Compiler {
     public String compile(InputStream inputStream) throws IOException {
         CompileContext context = frontend(inputStream);
         SymbolTable symbolTable = context.table();
-        
+
         instructions.clear();
         globalVariables.clear();
         functionAddresses.clear();
@@ -37,7 +37,7 @@ public class CompilerImpl implements Compiler {
         loopEndAddresses.clear();
 
         MandrillParser.ProgramContext program = context.tree();
-        
+
         for (MandrillParser.FunctionDefContext func : program.functionDef()) {
             String funcName = func.Identifier().getText();
             functionAddresses.put(funcName, instructions.size() * 8);
@@ -91,7 +91,8 @@ public class CompilerImpl implements Compiler {
         symbolTable.exitFunction();
     }
 
-    private void compileStatement(MandrillParser.StatementContext stmt, SymbolTable symbolTable, List<String> localVars) {
+    private void compileStatement(MandrillParser.StatementContext stmt, SymbolTable symbolTable,
+            List<String> localVars) {
         visitStatement(stmt, symbolTable, localVars);
     }
 
@@ -112,10 +113,11 @@ public class CompilerImpl implements Compiler {
         }
     }
 
-    private void visitAssignStatement(MandrillParser.AssignStatementContext ctx, SymbolTable symbolTable, List<String> localVars) {
+    private void visitAssignStatement(MandrillParser.AssignStatementContext ctx, SymbolTable symbolTable,
+            List<String> localVars) {
         if (ctx.lvalue() != null) {
             MandrillParser.LvalueContext lvalue = ctx.lvalue();
-            
+
             if (lvalue instanceof MandrillParser.PrintIntegerContext) {
                 visitExpression(ctx.rvalue().expression(), symbolTable, localVars);
                 instructions.add("puti 0");
@@ -125,7 +127,7 @@ public class CompilerImpl implements Compiler {
             } else if (lvalue instanceof MandrillParser.TargetVariableContext) {
                 MandrillParser.TargetVariableContext target = (MandrillParser.TargetVariableContext) lvalue;
                 String varName = target.Identifier().getText();
-                
+
                 if (target.LeftBracket() != null) {
                     visitExpression(target.expression(), symbolTable, localVars);
                     int varIndex = getVariableIndex(varName, symbolTable, localVars);
@@ -160,48 +162,50 @@ public class CompilerImpl implements Compiler {
         }
     }
 
-    private void visitLoopStatement(MandrillParser.LoopStatementContext ctx, SymbolTable symbolTable, List<String> localVars) {
+    private void visitLoopStatement(MandrillParser.LoopStatementContext ctx, SymbolTable symbolTable,
+            List<String> localVars) {
         int loopStart = instructions.size() * 8;
         loopStartAddresses.push(loopStart);
-        
+
         visitExpression(ctx.expr, symbolTable, localVars);
-        
+
         int afterLoop = (instructions.size() + 2) * 8;
         loopEndAddresses.push(afterLoop);
-        
+
         instructions.add("dstore " + afterLoop);
         instructions.add("dstore " + loopStart);
         instructions.add("eval " + EVAL_CONDITION);
-        
+
         visitStmtBlock(ctx.stmtBlock(), symbolTable, localVars);
-        
+
         instructions.add("jump " + loopStart);
-        
+
         loopStartAddresses.pop();
         loopEndAddresses.pop();
     }
 
-    private void visitConditionStatement(MandrillParser.ConditionStatementContext ctx, SymbolTable symbolTable, List<String> localVars) {
+    private void visitConditionStatement(MandrillParser.ConditionStatementContext ctx, SymbolTable symbolTable,
+            List<String> localVars) {
         visitExpression(ctx.expr, symbolTable, localVars);
-        
+
         int elseStart = (instructions.size() + 2) * 8;
         int afterIf = (instructions.size() + 3) * 8;
-        
+
         if (ctx.elseStatement != null) {
             instructions.add("dstore " + elseStart);
             instructions.add("dstore " + afterIf);
             instructions.add("eval " + EVAL_CONDITION);
-            
+
             visitStmtBlock(ctx.thenStatement, symbolTable, localVars);
-            
+
             instructions.add("jump " + afterIf);
-            
+
             visitStmtBlock(ctx.elseStatement, symbolTable, localVars);
         } else {
             instructions.add("dstore " + afterIf);
             instructions.add("dstore " + afterIf);
             instructions.add("eval " + EVAL_CONDITION);
-            
+
             visitStmtBlock(ctx.thenStatement, symbolTable, localVars);
         }
     }
@@ -221,7 +225,8 @@ public class CompilerImpl implements Compiler {
         }
     }
 
-    private void visitDeclarationStmt(MandrillParser.DeclarationStmtContext ctx, SymbolTable symbolTable, List<String> localVars) {
+    private void visitDeclarationStmt(MandrillParser.DeclarationStmtContext ctx, SymbolTable symbolTable,
+            List<String> localVars) {
         String varName = ctx.Identifier().getText();
         if (!localVars.contains(varName)) {
             localVars.add(varName);

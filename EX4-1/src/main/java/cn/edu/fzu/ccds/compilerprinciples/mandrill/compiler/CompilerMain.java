@@ -9,10 +9,10 @@ import java.nio.file.Path;
  * 编译器 CLI 入口。
  *
  * 用法: CompilerMain [--backend direct|tac] <input.mds> [output.asm]
- *   - --backend direct: 使用 AST → 汇编直接生成
- *   - --backend tac:    使用 AST → TAC → 汇编（默认）
- *   - input.mds:        Mandrill 源文件
- *   - output.asm:       可选，输出汇编文件路径。若省略，输出到 stdout。
+ * - --backend direct: 使用 AST → 汇编直接生成
+ * - --backend tac: 使用 AST → TAC → 汇编（默认）
+ * - input.mds: Mandrill 源文件
+ * - output.asm: 可选，输出汇编文件路径。若省略，输出到 stdout。
  */
 public class CompilerMain {
 

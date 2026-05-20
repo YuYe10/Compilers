@@ -12,8 +12,10 @@ import java.io.InputStream;
 /**
  * Mandrill 编译器接口。
  *
- * <p>提供统一的编译入口，将 Mandrill 源程序转换为汇编代码。
- * 具体实现可以选择直接生成（AST → 汇编）或经由中间表示生成（AST → TAC → 汇编）。</p>
+ * <p>
+ * 提供统一的编译入口，将 Mandrill 源程序转换为汇编代码。
+ * 具体实现可以选择直接生成（AST → 汇编）或经由中间表示生成（AST → TAC → 汇编）。
+ * </p>
  */
 public interface Compiler {
 
@@ -47,5 +49,6 @@ public interface Compiler {
     /**
      * 前端分析结果上下文。
      */
-    record CompileContext(MandrillParser.ProgramContext tree, SymbolTable table) {}
+    record CompileContext(MandrillParser.ProgramContext tree, SymbolTable table) {
+    }
 }

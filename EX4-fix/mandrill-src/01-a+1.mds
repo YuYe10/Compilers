@@ -1,2 +1,0 @@
-write = read + 1;
-put = '\n';
