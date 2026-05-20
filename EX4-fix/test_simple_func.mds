@@ -1,0 +1,5 @@
+func f(a) {
+    return a;
+}
+write = f(read);
+put = '\n';
