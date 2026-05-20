@@ -203,7 +203,6 @@ statement
     | jumpStmt
     | declarationStmt
     | stmtBlock
-    | expressionStmt
     | emptyStmt
     ;
 
@@ -213,10 +212,6 @@ declarationStmt
 
 jumpStmt
     : ('break' | 'continue' | 'return' expression) ';'
-    ;
-
-expressionStmt
-    : expression ';'
     ;
 
 emptyStmt

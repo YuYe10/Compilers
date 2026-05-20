@@ -1,5 +1,3 @@
-global a;
-
 func f() {
     local a;
     a = 50;
@@ -8,8 +6,9 @@ func f() {
 }
 
 func main() {
+    local a;
     a = 0;
     write = a;
-    f();
+    a = f();
     write = a;
 }
