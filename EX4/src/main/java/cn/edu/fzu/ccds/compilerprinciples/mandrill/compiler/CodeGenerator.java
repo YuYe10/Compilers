@@ -331,6 +331,7 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
             if (lvalueCtx instanceof MandrillParser.PrintIntegerContext) {
                 if (ctx.rvalue() != null && ctx.rvalue().expression() != null) {
                     MandrillParser.ExpressionContext rhsExpr = ctx.rvalue().expression();
+                    boolean isArrayOutput = false;
                     if (rhsExpr instanceof MandrillParser.SourceVariableContext) {
                         MandrillParser.SourceVariableContext sourceVarCtx = (MandrillParser.SourceVariableContext) rhsExpr;
                         String varName = sourceVarCtx.Identifier().getText();
@@ -338,14 +339,17 @@ public class CodeGenerator extends MandrillBaseVisitor<Void> {
                         // Only use puts for whole array (no subscript), not for a[i]
                         if (info != null && info.valueType == SymbolTable.ValueType.ARRAY_TYPE
                                 && sourceVarCtx.expression() == null) {
-                            visitExpression(rhsExpr);
-                            emit("puts 0");
-                            return null;
+                            isArrayOutput = true;
                         }
                     }
                     visitExpression(rhsExpr);
-                    emit("puti 0");
+                    if (isArrayOutput) {
+                        emit("puts 0");
+                    } else {
+                        emit("puti 0");
+                    }
                 }
+                return null;
             } else if (lvalueCtx instanceof MandrillParser.PrintCharContext) {
                 if (ctx.rvalue() != null && ctx.rvalue().expression() != null) {
                     visitExpression(ctx.rvalue().expression());
