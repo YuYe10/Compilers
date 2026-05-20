@@ -65,6 +65,12 @@ public interface MandrillVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitJumpStmt(MandrillParser.JumpStmtContext ctx);
 	/**
+	 * Visit a parse tree produced by {@link MandrillParser#expressionStmt}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitExpressionStmt(MandrillParser.ExpressionStmtContext ctx);
+	/**
 	 * Visit a parse tree produced by {@link MandrillParser#emptyStmt}.
 	 * @param ctx the parse tree
 	 * @return the visitor result

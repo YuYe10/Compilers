@@ -98,6 +98,16 @@ public interface MandrillListener extends ParseTreeListener {
 	 */
 	void exitJumpStmt(MandrillParser.JumpStmtContext ctx);
 	/**
+	 * Enter a parse tree produced by {@link MandrillParser#expressionStmt}.
+	 * @param ctx the parse tree
+	 */
+	void enterExpressionStmt(MandrillParser.ExpressionStmtContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link MandrillParser#expressionStmt}.
+	 * @param ctx the parse tree
+	 */
+	void exitExpressionStmt(MandrillParser.ExpressionStmtContext ctx);
+	/**
 	 * Enter a parse tree produced by {@link MandrillParser#emptyStmt}.
 	 * @param ctx the parse tree
 	 */

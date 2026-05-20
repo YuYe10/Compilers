@@ -115,6 +115,11 @@ public final class CompilerImpl implements Compiler {
             if (statementContext.declarationStmt() != null) {
                 return;
             }
+            if (statementContext.expressionStmt() != null) {
+                compileExpression(statementContext.expressionStmt().expression(), functionSymbol, ValueKind.INT);
+                emit("dstore", 0);
+                return;
+            }
             if (statementContext.stmtBlock() != null) {
                 compileStmtBlock(statementContext.stmtBlock(), functionSymbol);
             }
