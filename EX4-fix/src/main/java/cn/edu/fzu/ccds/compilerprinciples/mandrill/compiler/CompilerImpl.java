@@ -32,7 +32,7 @@ public final class CompilerImpl implements Compiler {
         private final List<InstructionLine> instructions = new ArrayList<>();
         private final Map<String, Label> labels = new LinkedHashMap<>();
         private final Deque<LoopContext> loopStack = new ArrayDeque<>();
-        private final Deque<Map<String, VariableSymbol>> scopeStack = new ArrayDeque<>();
+        private final Deque<ScopeFrame> scopeStack = new ArrayDeque<>();
         private int labelCounter = 0;
 
         private AssemblyBuilder(SymbolTable table) {
@@ -95,7 +95,7 @@ public final class CompilerImpl implements Compiler {
 
             pushScope();
             for (VariableSymbol parameterSymbol : functionSymbol.getParameterOrder()) {
-                currentScope().put(parameterSymbol.getName(), parameterSymbol);
+                currentScope().defineLocal(parameterSymbol.getName(), parameterSymbol);
             }
 
             for (VariableSymbol parameterSymbol : functionSymbol.getParameterOrder()) {
@@ -142,7 +142,10 @@ public final class CompilerImpl implements Compiler {
                         throw new IllegalStateException("Missing declared symbol for local: "
                                 + statementContext.declarationStmt().Identifier().getText());
                     }
-                    currentScope().put(declaredSymbol.getName(), declaredSymbol);
+                    currentScope().defineLocal(declaredSymbol.getName(), declaredSymbol);
+                } else if (functionSymbol != null
+                        && statementContext.declarationStmt().scope.getType() == MandrillParser.Global) {
+                    currentScope().defineGlobal(statementContext.declarationStmt().Identifier().getText());
                 }
                 return;
             }
@@ -470,10 +473,17 @@ public final class CompilerImpl implements Compiler {
 
         private ResolvedVariable resolveVariable(FunctionSymbol functionSymbol, String name) {
             if (functionSymbol != null) {
-                for (Map<String, VariableSymbol> scope : scopeStack) {
-                    VariableSymbol symbol = scope.get(name);
-                    if (symbol != null) {
-                        return new ResolvedVariable(symbol, true);
+                for (ScopeFrame scope : scopeStack) {
+                    ScopeBinding binding = scope.get(name);
+                    if (binding != null) {
+                        if (binding.global) {
+                            VariableSymbol global = table.resolveGlobal(name);
+                            if (global == null) {
+                                throw new IllegalStateException("Undefined variable: " + name);
+                            }
+                            return new ResolvedVariable(global, false);
+                        }
+                        return new ResolvedVariable(binding.symbol, true);
                     }
                 }
             }
@@ -485,7 +495,7 @@ public final class CompilerImpl implements Compiler {
         }
 
         private void pushScope() {
-            scopeStack.push(new LinkedHashMap<>());
+            scopeStack.push(new ScopeFrame());
         }
 
         private void popScope() {
@@ -495,11 +505,45 @@ public final class CompilerImpl implements Compiler {
             scopeStack.pop();
         }
 
-        private Map<String, VariableSymbol> currentScope() {
+        private ScopeFrame currentScope() {
             if (scopeStack.isEmpty()) {
                 throw new IllegalStateException("No active scope");
             }
             return scopeStack.peek();
+        }
+
+        private static final class ScopeFrame {
+            private final Map<String, ScopeBinding> bindings = new LinkedHashMap<>();
+
+            private void defineLocal(String name, VariableSymbol symbol) {
+                bindings.put(name, ScopeBinding.local(symbol));
+            }
+
+            private void defineGlobal(String name) {
+                bindings.put(name, ScopeBinding.global());
+            }
+
+            private ScopeBinding get(String name) {
+                return bindings.get(name);
+            }
+        }
+
+        private static final class ScopeBinding {
+            private final VariableSymbol symbol;
+            private final boolean global;
+
+            private ScopeBinding(VariableSymbol symbol, boolean global) {
+                this.symbol = symbol;
+                this.global = global;
+            }
+
+            private static ScopeBinding local(VariableSymbol symbol) {
+                return new ScopeBinding(symbol, false);
+            }
+
+            private static ScopeBinding global() {
+                return new ScopeBinding(null, true);
+            }
         }
 
         private void emitJump(Label label) {

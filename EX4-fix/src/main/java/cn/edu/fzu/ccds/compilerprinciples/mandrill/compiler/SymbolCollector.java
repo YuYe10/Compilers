@@ -14,7 +14,7 @@ public final class SymbolCollector extends MandrillBaseVisitor<Void> {
 
     private final SymbolTable table;
     private SymbolTable.FunctionSymbol currentFunction;
-    private final Deque<Map<String, SymbolTable.VariableSymbol>> scopeStack = new ArrayDeque<>();
+    private final Deque<ScopeFrame> scopeStack = new ArrayDeque<>();
 
     private SymbolCollector(SymbolTable table) {
         this.table = table;
@@ -68,7 +68,7 @@ public final class SymbolCollector extends MandrillBaseVisitor<Void> {
         currentFunction = table.resolveFunction(ctx.Identifier().getText());
         pushScope();
         for (SymbolTable.VariableSymbol parameterSymbol : currentFunction.getParameterOrder()) {
-            currentScope().put(parameterSymbol.getName(), parameterSymbol);
+            currentScope().defineLocal(parameterSymbol.getName(), parameterSymbol);
         }
         visit(ctx.stmtBlock());
         popScope();
@@ -103,13 +103,16 @@ public final class SymbolCollector extends MandrillBaseVisitor<Void> {
                 : SymbolTable.ValueKind.ARRAY;
         if (currentFunction == null || ctx.scope.getType() == MandrillParser.Global) {
             table.defineGlobal(name, kind);
+            if (currentFunction != null) {
+                currentScope().defineGlobal(name);
+            }
         } else {
             if (currentScope().containsKey(name)) {
                 throw new IllegalStateException(
                         "Duplicate local: " + name + " in function " + currentFunction.getName());
             }
             SymbolTable.VariableSymbol symbol = table.defineLocal(currentFunction, name, kind);
-            currentScope().put(name, symbol);
+            currentScope().defineLocal(name, symbol);
             table.registerDeclaredVariable(currentFunction, ctx, symbol);
         }
         return null;
@@ -149,17 +152,17 @@ public final class SymbolCollector extends MandrillBaseVisitor<Void> {
     }
 
     private SymbolTable.VariableSymbol resolveVisible(String name) {
-        for (Map<String, SymbolTable.VariableSymbol> scope : scopeStack) {
-            SymbolTable.VariableSymbol symbol = scope.get(name);
-            if (symbol != null) {
-                return symbol;
+        for (ScopeFrame scope : scopeStack) {
+            ScopeBinding binding = scope.get(name);
+            if (binding != null) {
+                return binding.global ? null : binding.symbol;
             }
         }
         return null;
     }
 
     private void pushScope() {
-        scopeStack.push(new LinkedHashMap<>());
+        scopeStack.push(new ScopeFrame());
     }
 
     private void popScope() {
@@ -169,10 +172,48 @@ public final class SymbolCollector extends MandrillBaseVisitor<Void> {
         scopeStack.pop();
     }
 
-    private Map<String, SymbolTable.VariableSymbol> currentScope() {
+    private ScopeFrame currentScope() {
         if (scopeStack.isEmpty()) {
             throw new IllegalStateException("No active scope");
         }
         return scopeStack.peek();
+    }
+
+    private static final class ScopeFrame {
+        private final Map<String, ScopeBinding> bindings = new LinkedHashMap<>();
+
+        private void defineLocal(String name, SymbolTable.VariableSymbol symbol) {
+            bindings.put(name, ScopeBinding.local(symbol));
+        }
+
+        private void defineGlobal(String name) {
+            bindings.put(name, ScopeBinding.global());
+        }
+
+        private ScopeBinding get(String name) {
+            return bindings.get(name);
+        }
+
+        private boolean containsKey(String name) {
+            return bindings.containsKey(name);
+        }
+    }
+
+    private static final class ScopeBinding {
+        private final SymbolTable.VariableSymbol symbol;
+        private final boolean global;
+
+        private ScopeBinding(SymbolTable.VariableSymbol symbol, boolean global) {
+            this.symbol = symbol;
+            this.global = global;
+        }
+
+        private static ScopeBinding local(SymbolTable.VariableSymbol symbol) {
+            return new ScopeBinding(symbol, false);
+        }
+
+        private static ScopeBinding global() {
+            return new ScopeBinding(null, true);
+        }
     }
 }
