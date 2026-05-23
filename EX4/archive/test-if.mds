@@ -1,1 +1,0 @@
-global a; a = 1; if(a < 2) { write = a; }

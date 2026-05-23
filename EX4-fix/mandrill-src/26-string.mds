@@ -1,5 +1,0 @@
-func main() {
-    local a[];
-    a[] = "Hello";
-    write = a;
-}

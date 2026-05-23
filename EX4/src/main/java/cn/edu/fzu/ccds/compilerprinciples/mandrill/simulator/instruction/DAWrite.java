@@ -12,9 +12,9 @@ public class DAWrite extends Instruction {
 
     @Override
     public void execute(SimulatorMemory vm) {
-        long value = vm.getOperandStack().pop();
         long address = vm.getOperandStack().pop();
-        vm.getHeap().write(address + operand, value);
+        long value = vm.getOperandStack().pop();
+        vm.getHeap().write(address, value);
         vm.instructionDone();
     }
 }

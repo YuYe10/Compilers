@@ -14,9 +14,4 @@ public class Jump extends Instruction {
     public void execute(SimulatorMemory vm) {
         vm.setProgramCounter(operand);
     }
-
-    @Override
-    public String toString() {
-        return "Jump(" + operand + ")";
-    }
 }

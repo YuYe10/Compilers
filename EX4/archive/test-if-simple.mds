@@ -1,7 +1,0 @@
-x = read;
-if (x > 5) {
-    write = 1;
-} else {
-    write = 0;
-}
-put = '\n';

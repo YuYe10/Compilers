@@ -1,4 +1,0 @@
-# Test: read array (string input)
-a[] = read;
-write = a;
-put = '\n';

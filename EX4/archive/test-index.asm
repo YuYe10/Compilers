@@ -1,9 +1,0 @@
-dstore 10
-dwrite 2
-dstore 20
-dwrite 3
-dload 2
-puti 0
-dload 3
-puti 0
-jump 0xFFFFFFFF

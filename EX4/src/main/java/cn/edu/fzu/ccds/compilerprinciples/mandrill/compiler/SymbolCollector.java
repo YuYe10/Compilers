@@ -2,203 +2,218 @@ package cn.edu.fzu.ccds.compilerprinciples.mandrill.compiler;
 
 import cn.edu.fzu.ccds.compilerprinciples.mandrill.antlr.MandrillBaseVisitor;
 import cn.edu.fzu.ccds.compilerprinciples.mandrill.antlr.MandrillParser;
+import org.antlr.v4.runtime.tree.ParseTree;
 
-public class SymbolCollector extends MandrillBaseVisitor<Void> {
-    private final SymbolTable symbolTable;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.List;
 
-    public SymbolCollector(SymbolTable symbolTable) {
-        this.symbolTable = symbolTable;
+public final class SymbolCollector extends MandrillBaseVisitor<Void> {
+
+    private final SymbolTable table;
+    private SymbolTable.FunctionSymbol currentFunction;
+    private final Deque<ScopeFrame> scopeStack = new ArrayDeque<>();
+
+    private SymbolCollector(SymbolTable table) {
+        this.table = table;
     }
 
-    public static void collect(MandrillParser.ProgramContext tree, SymbolTable table) {
+    public static void collect(MandrillParser.ProgramContext programContext, SymbolTable table) {
         SymbolCollector collector = new SymbolCollector(table);
-        collector.visit(tree);
+        collector.registerFunctions(programContext);
+        collector.visitProgram(programContext);
+        table.finalizeLayout();
+    }
+
+    private void registerFunctions(MandrillParser.ProgramContext programContext) {
+        for (MandrillParser.FunctionDefContext functionContext : programContext.functionDef()) {
+            String name = functionContext.Identifier().getText();
+            SymbolTable.ValueKind returnKind = functionContext.arraySuffix() == null
+                    ? SymbolTable.ValueKind.INT
+                    : SymbolTable.ValueKind.ARRAY;
+            SymbolTable.FunctionSymbol functionSymbol = table.defineFunction(name, returnKind, functionContext);
+
+            List<MandrillParser.ParameterContext> parameters = functionContext.parameterList() == null
+                    ? List.of()
+                    : functionContext.parameterList().parameter();
+            for (MandrillParser.ParameterContext parameterContext : parameters) {
+                String parameterName = parameterContext.Identifier().getText();
+                SymbolTable.ValueKind parameterKind = parameterContext.arraySuffix() == null
+                        ? SymbolTable.ValueKind.INT
+                        : SymbolTable.ValueKind.ARRAY;
+                table.defineParameter(functionSymbol, parameterName, parameterKind);
+            }
+        }
     }
 
     @Override
     public Void visitProgram(MandrillParser.ProgramContext ctx) {
-        for (MandrillParser.FunctionDefContext funcCtx : ctx.functionDef()) {
-            String funcName = funcCtx.Identifier().getText();
-            boolean returnsArray = funcCtx.arraySuffix() != null;
-            symbolTable.addFunction(funcName, returnsArray);
+        for (int index = 0; index < ctx.getChildCount(); index++) {
+            ParseTree child = ctx.getChild(index);
+            if (child instanceof MandrillParser.FunctionDefContext) {
+                MandrillParser.FunctionDefContext functionDefContext = (MandrillParser.FunctionDefContext) child;
+                visitFunctionDef(functionDefContext);
+            } else if (child instanceof MandrillParser.StatementContext) {
+                MandrillParser.StatementContext statementContext = (MandrillParser.StatementContext) child;
+                visitStatement(statementContext);
+            }
         }
-
-        for (MandrillParser.FunctionDefContext funcCtx : ctx.functionDef()) {
-            visitFunctionDef(funcCtx);
-        }
-
-        for (MandrillParser.StatementContext stmtCtx : ctx.statement()) {
-            visitStatement(stmtCtx);
-        }
-
-        symbolTable.saveState();
         return null;
     }
 
     @Override
     public Void visitFunctionDef(MandrillParser.FunctionDefContext ctx) {
-        symbolTable.enterScope();
-
-        if (ctx.parameterList() != null) {
-            for (MandrillParser.ParameterContext paramCtx : ctx.parameterList().parameter()) {
-                String paramName = paramCtx.Identifier().getText();
-                boolean isArray = paramCtx.arraySuffix() != null;
-                symbolTable.addParameter(paramName, isArray);
-            }
+        currentFunction = table.resolveFunction(ctx.Identifier().getText());
+        pushScope();
+        for (SymbolTable.VariableSymbol parameterSymbol : currentFunction.getParameterOrder()) {
+            currentScope().defineLocal(parameterSymbol.getName(), parameterSymbol);
         }
-
-        if (ctx.stmtBlock() != null) {
-            visitStmtBlock(ctx.stmtBlock());
-        }
-
-        symbolTable.saveParamState();
-        symbolTable.exitScope();
+        visit(ctx.stmtBlock());
+        popScope();
+        currentFunction = null;
         return null;
     }
 
     @Override
     public Void visitStmtBlock(MandrillParser.StmtBlockContext ctx) {
-        for (MandrillParser.StatementContext stmtCtx : ctx.statement()) {
-            visitStatement(stmtCtx);
+        if (currentFunction == null) {
+            return visitChildren(ctx);
         }
-        return null;
-    }
-
-    @Override
-    public Void visitStatement(MandrillParser.StatementContext ctx) {
-        if (ctx.declarationStmt() != null) {
-            MandrillParser.DeclarationStmtContext declCtx = ctx.declarationStmt();
-            String varName = declCtx.Identifier().getText();
-            boolean isArray = declCtx.arraySuffix() != null;
-
-            if (declCtx.scope != null && declCtx.scope.getText().equals("local")) {
-                symbolTable.addLocalVariable(varName, isArray);
-            } else if (declCtx.scope != null && declCtx.scope.getText().equals("global")) {
-                symbolTable.addGlobalVariable(varName, isArray);
-            } else {
-                symbolTable.addGlobalVariable(varName, isArray);
-            }
-        } else if (ctx.assignStatement() != null) {
-            visitAssignStatement(ctx.assignStatement());
-        } else if (ctx.loopStatement() != null) {
-            visitLoopStatement(ctx.loopStatement());
-        } else if (ctx.conditionStatement() != null) {
-            visitConditionStatement(ctx.conditionStatement());
-        } else if (ctx.stmtBlock() != null) {
-            visitStmtBlock(ctx.stmtBlock());
-        }
+        pushScope();
+        visitChildren(ctx);
+        popScope();
         return null;
     }
 
     @Override
     public Void visitAssignStatement(MandrillParser.AssignStatementContext ctx) {
-        if (ctx.lvalue() != null) {
-            MandrillParser.LvalueContext lvalueCtx = ctx.lvalue();
-            if (lvalueCtx instanceof MandrillParser.TargetVariableContext) {
-                MandrillParser.TargetVariableContext targetCtx = (MandrillParser.TargetVariableContext) lvalueCtx;
-                String varName = targetCtx.Identifier().getText();
-                boolean isArray = targetCtx.expression() != null;
-                SymbolTable.SymbolInfo info = symbolTable.lookup(varName);
-                if (info == null) {
-                    symbolTable.addGlobalVariable(varName, isArray);
-                } else if (isArray) {
-                    // Late type binding: if used with subscript, mark as array
-                    info.isArray = true;
-                }
-                if (targetCtx.expression() != null) {
-                    visitExpression(targetCtx.expression());
-                }
-            }
-        } else if (ctx.Identifier() != null) {
-            String varName = ctx.Identifier().getText();
-            boolean isArray = ctx.arraySuffix() != null;
-            if (symbolTable.lookup(varName) == null) {
-                symbolTable.addGlobalVariable(varName, isArray);
-            }
+        if (ctx.Identifier() != null && ctx.arraySuffix() != null) {
+            resolveVariableUse(ctx.Identifier().getText(), true, null);
         }
-        if (ctx.rvalue() != null && ctx.rvalue().expression() != null) {
-            visitExpression(ctx.rvalue().expression());
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Void visitDeclarationStmt(MandrillParser.DeclarationStmtContext ctx) {
+        String name = ctx.Identifier().getText();
+        SymbolTable.ValueKind kind = ctx.arraySuffix() == null
+                ? SymbolTable.ValueKind.INT
+                : SymbolTable.ValueKind.ARRAY;
+        if (currentFunction == null || ctx.scope.getType() == MandrillParser.Global) {
+            table.defineGlobal(name, kind);
+            if (currentFunction != null) {
+                currentScope().defineGlobal(name);
+            }
+        } else {
+            if (currentScope().containsKey(name)) {
+                throw new IllegalStateException(
+                        "Duplicate local: " + name + " in function " + currentFunction.getName());
+            }
+            SymbolTable.VariableSymbol symbol = table.defineLocal(currentFunction, name, kind);
+            currentScope().defineLocal(name, symbol);
+            table.registerDeclaredVariable(currentFunction, ctx, symbol);
         }
         return null;
     }
 
     @Override
-    public Void visitLoopStatement(MandrillParser.LoopStatementContext ctx) {
-        if (ctx.expr != null) {
-            visitExpression(ctx.expr);
-        }
-        if (ctx.stmtBlock() != null) {
-            visitStmtBlock(ctx.stmtBlock());
-        }
+    public Void visitTargetVariable(MandrillParser.TargetVariableContext ctx) {
+        resolveVariableUse(ctx.Identifier().getText(), ctx.LeftBracket() != null, ctx.expression());
         return null;
     }
 
     @Override
-    public Void visitConditionStatement(MandrillParser.ConditionStatementContext ctx) {
-        if (ctx.expr != null) {
-            visitExpression(ctx.expr);
+    public Void visitSourceVariable(MandrillParser.SourceVariableContext ctx) {
+        resolveVariableUse(ctx.Identifier().getText(), ctx.LeftBracket() != null, ctx.expression());
+        return null;
+    }
+
+    @Override
+    public Void visitFunctionCall(MandrillParser.FunctionCallContext ctx) {
+        if (table.resolveFunction(ctx.Identifier().getText()) == null) {
+            throw new IllegalStateException("Undefined function: " + ctx.Identifier().getText());
         }
-        if (ctx.thenStatement != null) {
-            visitStmtBlock(ctx.thenStatement);
+        return visitChildren(ctx);
+    }
+
+    private void resolveVariableUse(String name, boolean indexed, MandrillParser.ExpressionContext indexExpression) {
+        if (currentFunction != null && resolveVisible(name) != null) {
+            if (indexExpression != null) {
+                visit(indexExpression);
+            }
+            return;
         }
-        if (ctx.elseStatement != null) {
-            visitStmtBlock(ctx.elseStatement);
+        table.defineGlobal(name, indexed ? SymbolTable.ValueKind.ARRAY : SymbolTable.ValueKind.INT);
+        if (indexExpression != null) {
+            visit(indexExpression);
+        }
+    }
+
+    private SymbolTable.VariableSymbol resolveVisible(String name) {
+        for (ScopeFrame scope : scopeStack) {
+            ScopeBinding binding = scope.get(name);
+            if (binding != null) {
+                return binding.global ? null : binding.symbol;
+            }
         }
         return null;
     }
 
-    private Void visitExpression(MandrillParser.ExpressionContext ctx) {
-        if (ctx instanceof MandrillParser.SourceVariableContext) {
-            MandrillParser.SourceVariableContext sourceVarCtx = (MandrillParser.SourceVariableContext) ctx;
-            String varName = sourceVarCtx.Identifier().getText();
-            SymbolTable.SymbolInfo info = symbolTable.lookup(varName);
-            if (info == null) {
-                symbolTable.addGlobalVariable(varName, false);
-            }
-            // If used with subscript, mark as array (late type binding)
-            if (sourceVarCtx.expression() != null) {
-                if (info != null) {
-                    info.isArray = true;
-                }
-                visitExpression(sourceVarCtx.expression());
-            }
-        } else if (ctx instanceof MandrillParser.FunctionCallContext) {
-            MandrillParser.FunctionCallContext funcCallCtx = (MandrillParser.FunctionCallContext) ctx;
-            if (funcCallCtx.argumentList() != null) {
-                for (MandrillParser.ExpressionContext argExpr : funcCallCtx.argumentList().expression()) {
-                    visitExpression(argExpr);
-                }
-            }
-        } else if (ctx instanceof MandrillParser.MulDivModExpressionContext) {
-            MandrillParser.MulDivModExpressionContext mulDivCtx = (MandrillParser.MulDivModExpressionContext) ctx;
-            if (mulDivCtx.expression(0) != null)
-                visitExpression(mulDivCtx.expression(0));
-            if (mulDivCtx.expression(1) != null)
-                visitExpression(mulDivCtx.expression(1));
-        } else if (ctx instanceof MandrillParser.AddSubExpressionContext) {
-            MandrillParser.AddSubExpressionContext addSubCtx = (MandrillParser.AddSubExpressionContext) ctx;
-            if (addSubCtx.expression(0) != null)
-                visitExpression(addSubCtx.expression(0));
-            if (addSubCtx.expression(1) != null)
-                visitExpression(addSubCtx.expression(1));
-        } else if (ctx instanceof MandrillParser.ComparingExpressionContext) {
-            MandrillParser.ComparingExpressionContext compareCtx = (MandrillParser.ComparingExpressionContext) ctx;
-            if (compareCtx.expression(0) != null)
-                visitExpression(compareCtx.expression(0));
-            if (compareCtx.expression(1) != null)
-                visitExpression(compareCtx.expression(1));
-        } else if (ctx instanceof MandrillParser.EqualityExpressionContext) {
-            MandrillParser.EqualityExpressionContext eqCtx = (MandrillParser.EqualityExpressionContext) ctx;
-            if (eqCtx.expression(0) != null)
-                visitExpression(eqCtx.expression(0));
-            if (eqCtx.expression(1) != null)
-                visitExpression(eqCtx.expression(1));
-        } else if (ctx instanceof MandrillParser.SubgroupExpressionContext) {
-            MandrillParser.SubgroupExpressionContext subExprCtx = (MandrillParser.SubgroupExpressionContext) ctx;
-            if (subExprCtx.expression() != null) {
-                visitExpression(subExprCtx.expression());
-            }
+    private void pushScope() {
+        scopeStack.push(new ScopeFrame());
+    }
+
+    private void popScope() {
+        if (scopeStack.isEmpty()) {
+            throw new IllegalStateException("Scope stack underflow");
         }
-        return null;
+        scopeStack.pop();
+    }
+
+    private ScopeFrame currentScope() {
+        if (scopeStack.isEmpty()) {
+            throw new IllegalStateException("No active scope");
+        }
+        return scopeStack.peek();
+    }
+
+    private static final class ScopeFrame {
+        private final Map<String, ScopeBinding> bindings = new LinkedHashMap<>();
+
+        private void defineLocal(String name, SymbolTable.VariableSymbol symbol) {
+            bindings.put(name, ScopeBinding.local(symbol));
+        }
+
+        private void defineGlobal(String name) {
+            bindings.put(name, ScopeBinding.global());
+        }
+
+        private ScopeBinding get(String name) {
+            return bindings.get(name);
+        }
+
+        private boolean containsKey(String name) {
+            return bindings.containsKey(name);
+        }
+    }
+
+    private static final class ScopeBinding {
+        private final SymbolTable.VariableSymbol symbol;
+        private final boolean global;
+
+        private ScopeBinding(SymbolTable.VariableSymbol symbol, boolean global) {
+            this.symbol = symbol;
+            this.global = global;
+        }
+
+        private static ScopeBinding local(SymbolTable.VariableSymbol symbol) {
+            return new ScopeBinding(symbol, false);
+        }
+
+        private static ScopeBinding global() {
+            return new ScopeBinding(null, true);
+        }
     }
 }

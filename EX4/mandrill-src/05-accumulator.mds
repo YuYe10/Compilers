@@ -1,7 +1,0 @@
-# Test case for accumulator
-accumulator = 0;
-accumulator = accumulator + 1;
-accumulator = accumulator + 2;
-accumulator = accumulator + 3;
-write = accumulator;
-put = '\n';

@@ -4,18 +4,15 @@ import cn.edu.fzu.ccds.compilerprinciples.mandrill.simulator.assembler.AssemblyP
 import cn.edu.fzu.ccds.compilerprinciples.mandrill.simulator.instruction.Instruction;
 
 import java.io.*;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.List;
 
 /**
  * Mandrill v2.0 虚拟机汇编模拟器 CLI 入口。
  *
  * 用法：
- * SimulatorMain <file>
- * SimulatorMain <file> <in>
- * SimulatorMain <file> <in> <out>
+ *   SimulatorMain <file>
+ *   SimulatorMain <file> <in>
+ *   SimulatorMain <file> <in> <out>
  *
  * 其中 "-" 表示 stdin（输入）或 stdout（输出）。
  */
@@ -46,10 +43,9 @@ public class SimulatorMain {
         }
 
         try (FileInputStream assemblyFileStream = new FileInputStream(file);
-                inputStream;
-                printStream) {
+             inputStream;
+             printStream) {
             List<Instruction> instructions = AssemblyParser.parse(assemblyFileStream);
-
             SimulatorMemory memory = new SimulatorMemory(instructions, inputStream, printStream);
             while (memory.getProgramCounter() != 0xFFFFFFFFL) {
                 int index = (int) (memory.getProgramCounter() / 8);
@@ -59,16 +55,11 @@ public class SimulatorMain {
                 Instruction instruction = instructions.get(index);
                 instruction.execute(memory);
             }
-        } catch (Exception e) {
-            System.err.println("=== Assembly file content ===");
-            try {
-                System.err.print(Files.readString(Path.of(file), StandardCharsets.UTF_8));
-            } catch (IOException ioException) {
-                System.err.println("Could not read assembly file: " + ioException.getMessage());
-            }
-            System.err.println("============================");
-            System.err.println("Runtime error: " + e.getMessage());
-            e.printStackTrace();
+        } catch (FileNotFoundException e) {
+            System.err.println("汇编文件未找到: " + file);
+            System.exit(1);
+        } catch (IOException e) {
+            System.err.println("IO 错误: " + e.getMessage());
             System.exit(1);
         }
     }

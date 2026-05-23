@@ -14,7 +14,6 @@ public class PutI extends Instruction {
     public void execute(SimulatorMemory vm) {
         long value = vm.getOperandStack().pop();
         vm.getPrintStream().print((int) value);
-        vm.getPrintStream().flush();
         vm.instructionDone();
     }
 }

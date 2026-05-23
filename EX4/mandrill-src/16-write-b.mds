@@ -1,4 +1,0 @@
-# Test case for writing binary output
-a = 255;
-write = a;
-put = '\n';

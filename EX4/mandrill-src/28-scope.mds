@@ -1,27 +1,14 @@
-# Test case for scope handling
-# Tests: global variables, local variables, nested scopes
-
-a = 1;        # Global variable 'a'
-
-func test() {
-    global d;
-
-    d = 70;
-
-    local b;   # Local variable in function
-    b = 2;
-    write = b; put = '\n'; # Access local variable
-
-    {
-        local c;  # Local variable in inner block
-        c = 3 + d;
-        write = c; put = '\n'; # Access inner block variable
-        write = b; put = '\n'; # Access outer block variable
-        write = a; put = '\n'; # Access global variable from within function
-    }
-
-    write = b; put = '\n';     # Still can access 'b' after inner block
-    return a;                  # Return global variable 'a' (value 1)
+func f() {
+    local a;
+    a = 50;
+    write = a;
+    return 0;
 }
 
-local result; result = test();
+func main() {
+    local a;
+    a = 0;
+    write = a;
+    a = f();
+    write = a;
+}

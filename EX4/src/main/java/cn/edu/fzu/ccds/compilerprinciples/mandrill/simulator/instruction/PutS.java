@@ -24,7 +24,6 @@ public class PutS extends Instruction {
             offset++;
         }
         vm.getPrintStream().print(sb.toString());
-        vm.getPrintStream().flush();
         vm.instructionDone();
     }
 }

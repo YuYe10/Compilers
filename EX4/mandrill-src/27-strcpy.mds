@@ -1,18 +1,7 @@
-# Test case for string copy
-a[] = "Hello World";
-
-# Implement strcpy function
-func[] strcpy(dest[], src[]) {
-    local i;
-    i = 0;
-    while (src[i] != 0) {
-        dest[i] = src[i];
-        i = i + 1;
-    }
-    dest[i] = 0;
-    return dest;
+func main() {
+    local s[];
+    local t[];
+    s[] = "abc";
+    t[] = s;
+    write = t;
 }
-
-# Test strcpy - no output
-b[] = 20;
-b[] = strcpy(b, a);

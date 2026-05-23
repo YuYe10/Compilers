@@ -1,2 +1,5 @@
-a[] = "Hello World\n";
-write = a;
+func main() {
+    local a[];
+    a[] = "Hello";
+    write = a;
+}

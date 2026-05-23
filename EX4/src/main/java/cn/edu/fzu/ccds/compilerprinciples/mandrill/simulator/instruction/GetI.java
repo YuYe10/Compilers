@@ -20,9 +20,4 @@ public class GetI extends Instruction {
         }
         vm.instructionDone();
     }
-
-    @Override
-    public String toString() {
-        return "GetI(" + operand + ")";
-    }
 }

@@ -7,44 +7,32 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
+/**
+ * 文本汇编解析器。
+ * 每行一条指令，格式：<指令名> [操作数]
+ * 支持 # 开头或 // 开头的注释，忽略空行。
+ */
 public class AssemblyParser {
 
     public static List<Instruction> parse(InputStream inputStream) throws IOException {
-        List<String> lines = new ArrayList<>();
-        Map<String, Integer> labelAddresses = new HashMap<>();
-        
+        List<Instruction> instructions = new ArrayList<>();
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
             String line;
-            int instructionIndex = 0;
             while ((line = reader.readLine()) != null) {
                 line = line.trim();
                 if (line.isEmpty() || line.startsWith("#") || line.startsWith("//")) {
                     continue;
                 }
-                if (line.startsWith("label_")) {
-                    String labelName = line.substring(6);
-                    labelAddresses.put(labelName, instructionIndex);
-                } else {
-                    lines.add(line);
-                    instructionIndex++;
-                }
+                Instruction instruction = parseLine(line);
+                instructions.add(instruction);
             }
         }
-        
-        List<Instruction> instructions = new ArrayList<>();
-        for (String line : lines) {
-            Instruction instruction = parseLine(line, labelAddresses);
-            instructions.add(instruction);
-        }
-        
         return instructions;
     }
 
-    private static Instruction parseLine(String line, Map<String, Integer> labelAddresses) {
+    private static Instruction parseLine(String line) {
         String[] parts = line.split("\\s+");
         if (parts.length == 0) {
             throw new IllegalArgumentException("Empty instruction line");
@@ -52,7 +40,7 @@ public class AssemblyParser {
         String name = parts[0].toLowerCase();
         long operand = 0;
         if (parts.length >= 2) {
-            operand = parseOperand(parts[1], labelAddresses);
+            operand = parseOperand(parts[1]);
         }
 
         switch (name) {
@@ -94,26 +82,13 @@ public class AssemblyParser {
                 return new PutC(operand);
             case "puts":
                 return new PutS(operand);
-            case "pop":
-                return new Pop(operand);
-            case "dconst":
-                return new DConst(operand);
-            case "dconst_label":
-                return new DConst(operand);
-            case "setsp":
-                return new SetSP(operand);
-            case "swap":
-                return new Swap(operand);
             default:
                 throw new IllegalArgumentException("Unknown instruction: " + name);
         }
     }
 
-    private static long parseOperand(String s, Map<String, Integer> labelAddresses) {
+    private static long parseOperand(String s) {
         s = s.trim();
-        if (labelAddresses.containsKey(s)) {
-            return labelAddresses.get(s);
-        }
         if (s.startsWith("0x") || s.startsWith("0X")) {
             return Long.parseLong(s.substring(2), 16);
         }

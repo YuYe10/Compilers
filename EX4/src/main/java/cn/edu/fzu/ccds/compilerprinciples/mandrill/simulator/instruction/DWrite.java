@@ -16,9 +16,4 @@ public class DWrite extends Instruction {
         vm.writeGlobal((int) operand, value);
         vm.instructionDone();
     }
-
-    @Override
-    public String toString() {
-        return "DWrite(" + operand + ")";
-    }
 }

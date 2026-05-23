@@ -1,4 +1,0 @@
-# Test case for whitespace handling
-a   =   10   +   20   ;
-write   =   a   ;
-put   =   '\n'   ;

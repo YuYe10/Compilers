@@ -1,193 +1,193 @@
 package cn.edu.fzu.ccds.compilerprinciples.mandrill.compiler;
 
-import java.util.HashMap;
+import cn.edu.fzu.ccds.compilerprinciples.mandrill.antlr.MandrillParser;
+import org.antlr.v4.runtime.tree.ParseTree;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 public class SymbolTable {
-    public enum SymbolKind {
-        GLOBAL_VAR,
-        LOCAL_VAR,
-        PARAM,
-        FUNCTION,
+
+    public enum ValueKind {
+        INT,
         ARRAY
     }
 
-    public enum ValueType {
-        INT,
-        ARRAY_TYPE
-    }
+    public static final class VariableSymbol {
+        private final String name;
+        private final ValueKind kind;
+        private final int index;
 
-    public static class SymbolInfo {
-        public final String name;
-        public final SymbolKind kind;
-        public ValueType valueType;
-        public final int index;
-        public boolean isArray;
-        public int localOffset;
-
-        public SymbolInfo(String name, SymbolKind kind, ValueType valueType, int index, boolean isArray) {
+        private VariableSymbol(String name, ValueKind kind, int index) {
             this.name = name;
             this.kind = kind;
-            this.valueType = valueType;
             this.index = index;
-            this.isArray = isArray;
         }
 
-        @Override
-        public String toString() {
-            return "SymbolInfo{" +
-                    "name='" + name + '\'' +
-                    ", kind=" + kind +
-                    ", valueType=" + valueType +
-                    ", index=" + index +
-                    ", isArray=" + isArray +
-                    ", localOffset=" + localOffset +
-                    '}';
+        public String getName() {
+            return name;
         }
-    }
 
-    private Map<String, SymbolInfo> globalSymbols;
-    private Map<String, SymbolInfo> currentLocalSymbols;
-    private Map<String, SymbolInfo> currentParamSymbols;
-    private int globalVarCount;
-    private int localVarCount;
-    private int paramCount;
-    private int functionCount;
+        public ValueKind getKind() {
+            return kind;
+        }
 
-    private Map<String, SymbolInfo> savedGlobalSymbols;
-    private Map<String, SymbolInfo> savedParamSymbols;
-
-    public SymbolTable() {
-        this.globalSymbols = new HashMap<>();
-        this.currentLocalSymbols = new HashMap<>();
-        this.currentParamSymbols = new HashMap<>();
-        this.globalVarCount = 0;
-        this.localVarCount = 0;
-        this.paramCount = 0;
-        this.functionCount = 0;
-        this.savedGlobalSymbols = new HashMap<>();
-        this.savedParamSymbols = new HashMap<>();
-    }
-
-    public void enterScope() {
-        currentLocalSymbols = new HashMap<>();
-        currentParamSymbols = new HashMap<>();
-        localVarCount = 0;
-        paramCount = 0;
-    }
-
-    public void exitScope() {
-        currentLocalSymbols = new HashMap<>();
-        currentParamSymbols = new HashMap<>();
-    }
-
-    public void saveState() {
-        savedGlobalSymbols = new HashMap<>(globalSymbols);
-        savedParamSymbols = new HashMap<>(currentParamSymbols);
-    }
-
-    public void saveParamState() {
-        for (SymbolInfo info : currentParamSymbols.values()) {
-            savedParamSymbols.put(info.name, info);
+        public int getIndex() {
+            return index;
         }
     }
 
-    public void reinitializeForSemanticCheck() {
-        globalSymbols = new HashMap<>(savedGlobalSymbols);
-        currentParamSymbols = new HashMap<>(savedParamSymbols);
-        currentLocalSymbols = new HashMap<>();
-        globalVarCount = 0;
-        for (SymbolInfo info : globalSymbols.values()) {
-            if (info.kind == SymbolKind.GLOBAL_VAR) {
-                globalVarCount++;
+    public static final class FunctionSymbol {
+        private final String name;
+        private final ValueKind returnKind;
+        private final MandrillParser.FunctionDefContext context;
+        private final LinkedHashMap<String, VariableSymbol> parameters = new LinkedHashMap<>();
+        private final List<VariableSymbol> parameterOrder = new ArrayList<>();
+        private final Map<ParseTree, VariableSymbol> declaredVariables = new LinkedHashMap<>();
+        private int nextLocalIndex = 0;
+        private int frameSizeBytes = 4;
+
+        private FunctionSymbol(String name, ValueKind returnKind, MandrillParser.FunctionDefContext context) {
+            this.name = name;
+            this.returnKind = returnKind;
+            this.context = context;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public ValueKind getReturnKind() {
+            return returnKind;
+        }
+
+        public MandrillParser.FunctionDefContext getContext() {
+            return context;
+        }
+
+        public Map<String, VariableSymbol> getParameters() {
+            return parameters;
+        }
+
+        public List<VariableSymbol> getParameterOrder() {
+            return parameterOrder;
+        }
+
+        public VariableSymbol getDeclaredVariable(ParseTree declarationContext) {
+            return declaredVariables.get(declarationContext);
+        }
+
+        public int getFrameSizeBytes() {
+            return frameSizeBytes;
+        }
+
+        private VariableSymbol defineParameter(String variableName, ValueKind kind) {
+            if (parameters.containsKey(variableName)) {
+                throw new IllegalStateException("Duplicate parameter: " + variableName + " in function " + name);
             }
+            VariableSymbol symbol = new VariableSymbol(variableName, kind, nextLocalIndex++);
+            parameters.put(variableName, symbol);
+            parameterOrder.add(symbol);
+            updateFrameSize();
+            return symbol;
         }
-        functionCount = 0;
-        for (SymbolInfo info : globalSymbols.values()) {
-            if (info.kind == SymbolKind.FUNCTION) {
-                functionCount++;
+
+        private VariableSymbol defineLocal(String variableName, ValueKind kind) {
+            VariableSymbol symbol = new VariableSymbol(variableName, kind, nextLocalIndex++);
+            updateFrameSize();
+            return symbol;
+        }
+
+        private void registerDeclaredVariable(ParseTree declarationContext, VariableSymbol symbol) {
+            declaredVariables.put(declarationContext, symbol);
+        }
+
+        private void updateFrameSize() {
+            frameSizeBytes = Math.max(4, nextLocalIndex * 4);
+        }
+    }
+
+    private final LinkedHashMap<String, VariableSymbol> globals = new LinkedHashMap<>();
+    private final LinkedHashMap<String, FunctionSymbol> functions = new LinkedHashMap<>();
+    private int nextGlobalIndex = 0;
+    private int compilerTempGlobalIndex = -1;
+
+    public VariableSymbol defineGlobal(String name, ValueKind kind) {
+        VariableSymbol existing = globals.get(name);
+        if (existing != null) {
+            if (existing.kind == kind) {
+                return existing;
             }
+            // allow implicit upgrade from INT to ARRAY when first usage was scalar
+            if (existing.kind == ValueKind.INT && kind == ValueKind.ARRAY) {
+                VariableSymbol upgraded = new VariableSymbol(name, kind, existing.index);
+                globals.put(name, upgraded);
+                return upgraded;
+            }
+            // if already an ARRAY and later used as INT, keep ARRAY (no change)
+            if (existing.kind == ValueKind.ARRAY && kind == ValueKind.INT) {
+                return existing;
+            }
+            throw new IllegalStateException("Conflicting global kinds for " + name);
+        }
+        VariableSymbol symbol = new VariableSymbol(name, kind, nextGlobalIndex++);
+        globals.put(name, symbol);
+        return symbol;
+    }
+
+    public VariableSymbol resolveGlobal(String name) {
+        return globals.get(name);
+    }
+
+    public FunctionSymbol defineFunction(String name, ValueKind returnKind, MandrillParser.FunctionDefContext context) {
+        FunctionSymbol existing = functions.get(name);
+        if (existing != null) {
+            if (existing.returnKind != returnKind) {
+                throw new IllegalStateException("Conflicting function kinds for " + name);
+            }
+            return existing;
+        }
+        FunctionSymbol symbol = new FunctionSymbol(name, returnKind, context);
+        functions.put(name, symbol);
+        return symbol;
+    }
+
+    public FunctionSymbol resolveFunction(String name) {
+        return functions.get(name);
+    }
+
+    public Map<String, VariableSymbol> getGlobals() {
+        return globals;
+    }
+
+    public Map<String, FunctionSymbol> getFunctions() {
+        return functions;
+    }
+
+    public int getCompilerTempGlobalIndex() {
+        if (compilerTempGlobalIndex < 0) {
+            throw new IllegalStateException("Compiler temp global was not reserved");
+        }
+        return compilerTempGlobalIndex;
+    }
+
+    public void finalizeLayout() {
+        if (compilerTempGlobalIndex < 0) {
+            compilerTempGlobalIndex = nextGlobalIndex++;
         }
     }
 
-    public SymbolInfo addGlobalVariable(String name, boolean isArray) {
-        SymbolInfo info = new SymbolInfo(name, SymbolKind.GLOBAL_VAR,
-                isArray ? ValueType.ARRAY_TYPE : ValueType.INT, globalVarCount++, isArray);
-        globalSymbols.put(name, info);
-        return info;
+    VariableSymbol defineParameter(FunctionSymbol functionSymbol, String name, ValueKind kind) {
+        return functionSymbol.defineParameter(name, kind);
     }
 
-    public SymbolInfo addLocalVariable(String name, boolean isArray) {
-        SymbolInfo info = new SymbolInfo(name, SymbolKind.LOCAL_VAR,
-                isArray ? ValueType.ARRAY_TYPE : ValueType.INT, localVarCount++, isArray);
-        // Local offsets start after parameters: paramCount + localIndex
-        info.localOffset = paramCount + (localVarCount - 1);
-        currentLocalSymbols.put(name, info);
-        return info;
+    VariableSymbol defineLocal(FunctionSymbol functionSymbol, String name, ValueKind kind) {
+        return functionSymbol.defineLocal(name, kind);
     }
 
-    public SymbolInfo addParameter(String name, boolean isArray) {
-        SymbolInfo info = new SymbolInfo(name, SymbolKind.PARAM,
-                isArray ? ValueType.ARRAY_TYPE : ValueType.INT, paramCount, isArray);
-        info.localOffset = paramCount;
-        paramCount++;
-        currentParamSymbols.put(name, info);
-        return info;
-    }
-
-    public SymbolInfo addFunction(String name, boolean returnsArray) {
-        SymbolInfo info = new SymbolInfo(name, SymbolKind.FUNCTION,
-                returnsArray ? ValueType.ARRAY_TYPE : ValueType.INT, functionCount++, returnsArray);
-        globalSymbols.put(name, info);
-        return info;
-    }
-
-    public SymbolInfo lookup(String name) {
-        SymbolInfo info = currentParamSymbols.get(name);
-        if (info != null)
-            return info;
-        info = currentLocalSymbols.get(name);
-        if (info != null)
-            return info;
-        return globalSymbols.get(name);
-    }
-
-    public SymbolInfo lookupGlobal(String name) {
-        return globalSymbols.get(name);
-    }
-
-    public SymbolInfo lookupLocal(String name) {
-        SymbolInfo info = currentLocalSymbols.get(name);
-        if (info != null)
-            return info;
-        return currentParamSymbols.get(name);
-    }
-
-    public Map<String, SymbolInfo> getGlobalSymbols() {
-        return globalSymbols;
-    }
-
-    public Map<String, SymbolInfo> getCurrentLocalSymbols() {
-        return currentLocalSymbols;
-    }
-
-    public Map<String, SymbolInfo> getCurrentParamSymbols() {
-        return currentParamSymbols;
-    }
-
-    public int getLocalVarCount() {
-        return localVarCount;
-    }
-
-    public int getParamCount() {
-        return paramCount;
-    }
-
-    public int getGlobalVarCount() {
-        return globalVarCount;
-    }
-
-    public int getFunctionCount() {
-        return functionCount;
+    void registerDeclaredVariable(FunctionSymbol functionSymbol, ParseTree declarationContext, VariableSymbol symbol) {
+        functionSymbol.registerDeclaredVariable(declarationContext, symbol);
     }
 }
