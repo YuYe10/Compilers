@@ -1,0 +1,306 @@
+\documentclass[UTF8,a4paper,12pt]{ctexart}
+\usepackage{geometry}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{hyperref}
+\usepackage{setspace}
+
+\geometry{left=2.6cm,right=2.6cm,top=2.6cm,bottom=2.6cm}
+\setlength{\parindent}{2em}
+\setlist[itemize]{leftmargin=2em}
+\onehalfspacing
+\lstdefinestyle{mandrillcode}{
+basicstyle=\ttfamily\small,
+frame=single,
+numbers=left,
+numberstyle=\tiny,
+stepnumber=1,
+breaklines=true,
+columns=fullflexible,
+tabsize=4,
+showstringspaces=false
+}
+
+\title{Mandrill 2.0 编译器完整实践实验报告}
+\author{}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section*{摘要}
+本实验围绕 Mandrill 2.0 语言编译器的完整实现展开，重点不是堆叠功能点，而是把词法切分、递归下降语法分析、基于符号表的语义检查以及面向虚拟机的代码生成这四个算法模块串成一条稳定的流水线。仓库中提供的样例程序、异常测试、批处理脚本和单元测试共同构成了验证闭环：正常样例用于确认算法输出是否与标准答案一致，异常样例用于确认错误是否在合适的阶段被拦截，模拟器测试则用于确认生成的汇编代码是否能够按预期执行。实验结果表明，系统能够正确识别关键字、标识符、常量和运算符，能够按照文法层次重建程序结构，能够在编译期发现作用域、类型和上下文错误，并能够把合法程序翻译成可运行的虚拟机指令。
+
+\section{实验目的与对象}
+这次实验对应仓库中的 EX1 到 EX4 四个阶段，目标不是把编译器一次性写完，而是按层实现并验证。前端部分解决“程序长什么样”，中间部分解决“这些名字和类型在当前上下文里是否成立”，后端部分解决“如何把正确的程序翻成可以跑的指令”。这条路径之所以适合课程实验，是因为每一层都有明确输入和输出，出错时也能迅速定位。
+
+Mandrill 2.0 本身是一门面向课程实验设计的命令式语言，支持整数、数组、字符串、字符常量、函数、条件语句、循环语句、跳转语句以及输入输出操作。仓库中的参考手册和语法文件给出了这门语言的完整词法和文法约束，EX1 到 EX4 则分别实现了词法分析器、语法分析器、语义检查器以及编译器与模拟器。实验对象就是这些真实实现及其样例数据，不是抽象教材例子。
+
+\section{算法设计}
+Mandrill 编译器的核心算法可以概括为四步：先把字符流切成 token，再把 token 组织成语法结构，随后把结构放进符号表里做上下文检查，最后把通过检查的结构变成目标指令。为了让实现逻辑更清楚，下面把四个核心算法写成伪代码。
+
+\subsection*{词法分析算法}
+\begin{lstlisting}[style=mandrillcode,caption={词法分析算法伪代码},label={lst:lexer-pseudo}]
+input: character stream src
+output: token list tokens
+
+while src not end:
+    read one character c
+    if c is whitespace:
+        skip
+    else if c is digit:
+        read consecutive digits
+        emit integer token
+    else if c is letter or '_':
+        read letters, digits and '_'
+        if lexeme in keyword table:
+            emit keyword token
+        else:
+            emit identifier token
+    else if c is single quote:
+        read character constant
+        emit char token
+    else if c is double quote:
+        read string constant
+        emit string token
+    else if c starts operator or delimiter:
+        resolve one-char or two-char token
+    else:
+        record illegal character
+emit EOF token
+return tokens
+\end{lstlisting}
+
+这个算法的关键不在于分支多，而在于扫描顺序必须稳定。尤其是关键字和标识符的区分，必须先完整读出词素，再查关键字表，否则像 `write1` 这样的名字会被误判成保留字前缀。EX1 中的实现正是沿着这个思路写的：逐字符读取、维护行列信息、用前瞻处理 `==`、`!=`、`<=`、`>=`，最后统一输出 token 序列。
+
+\subsection*{递归下降语法分析算法}
+\begin{lstlisting}[style=mandrillcode,caption={递归下降语法分析伪代码},label={lst:parser-pseudo}]
+parseProgram():
+    while current token != EOF:
+        if current token is FUNC:
+            parseFunctionDef()
+        else:
+            parseStatement()
+
+parseExpression():
+    parseEquality()
+
+parseEquality():
+    parseRelational()
+    while next token is == or !=:
+        consume operator
+        parseRelational()
+
+parseRelational():
+    parseAdditive()
+    while next token is <, <=, > or >=:
+        consume operator
+        parseAdditive()
+
+parseAdditive():
+    parseMultiplicative()
+    while next token is + or -:
+        consume operator
+        parseMultiplicative()
+
+parseMultiplicative():
+    parsePrimary()
+    while next token is *, / or %:
+        consume operator
+        parsePrimary()
+\end{lstlisting}
+
+语法分析这里最容易写乱的地方是表达式优先级。EX2 的实现没有采用回溯，而是把表达式拆成几层，每层只处理一种优先级，这样就能保持递归下降的简单性，同时保证 `* / %` 不会抢走 `+ -` 的结合顺序，比较运算也不会和算术运算混在一起。函数定义、条件语句、循环语句和跳转语句则是围绕这套表达式层次展开的，因此整个 Parser 的重点其实是“结构稳定”，不是“写得花”。
+
+\subsection*{语义检查算法}
+\begin{lstlisting}[style=mandrillcode,caption={语义检查算法伪代码},label={lst:semantic-pseudo}]
+visitProgram(node):
+    build global symbol table
+    visit function definitions and global statements
+
+visitFunctionDef(node):
+    enter function scope
+    register parameters
+    visit function body
+    exit function scope
+
+visitDeclaration(node):
+    if name already exists in current scope:
+        report duplicate definition
+    else:
+        register symbol type and scope
+
+visitJump(node):
+    if break/continue outside loop:
+        report error
+    if return outside function:
+        report error
+    if return type mismatches function declaration:
+        report error
+
+visitCall(node):
+    check function exists
+    check argument count
+    check argument types against parameter types
+\end{lstlisting}
+
+语义检查的本质是维护状态。当前是不是在函数里、当前是不是在循环里、某个名字属于全局还是局部、变量到底是整数还是数组，这些状态决定了一条语句是否成立。EX3 和 EX4 都使用了符号表和作用域栈来维护这些信息，前者负责在语法树遍历时做严格约束，后者则把收集到的符号信息带入代码生成阶段。这样做的好处是很直接的：很多本来会到运行时才出错的问题，在编译期就能被挡下来。
+
+\subsection*{代码生成算法}
+\begin{lstlisting}[style=mandrillcode,caption={代码生成算法伪代码},label={lst:compiler-pseudo}]
+compileProgram(program):
+    jump to main entry
+    compile all function definitions
+    compile top-level statements
+    emit halt jump
+
+compileExpression(expr):
+    if expr is constant:
+        emit immediate load
+    else if expr is variable:
+        emit load from global or local frame
+    else if expr is function call:
+        push arguments in reverse order
+        emit call instruction
+    else if expr is binary operator:
+        compile left operand
+        compile right operand
+        emit eval instruction
+
+compileStatement(stmt):
+    if stmt is assignment:
+        compute right value
+        write back to target address
+    if stmt is if or while:
+        create labels and branch instructions
+    if stmt is return:
+        compile return expression
+        emit ret
+\end{lstlisting}
+
+代码生成阶段最需要注意的是调用约定和控制流。函数入口必须先处理栈帧，函数调用前参数要按约定入栈，数组访问要先计算地址再读写，条件和循环要先生成标签再回填跳转。EX4 的 `CompilerImpl` 和模拟器测试说明，这一层不是简单“把树吐成文本”，而是要对栈、堆、标签和返回地址都保持一致的理解。
+
+\section{实现过程与结果}
+EX1 到 EX4 的实现顺序很自然：先切 token，再排结构，再做语义检查，最后发射指令。真正难的地方不是把代码写满，而是让前一层的输出刚好喂给后一层。EX1 中的词法器是整个链条的入口，程序从 UTF-8 输入流逐字符读取，维护行号和列号，识别关键字、标识符、字面量以及单字符和双字符运算符。EX2 把 token 还原成程序结构，能判定函数定义、语句块、条件语句、循环语句和表达式是否合法。EX3 进入语义阶段后，重点变成了上下文一致性：变量是否声明、数组是否被当作整数使用、函数调用参数个数是否正确、`break` 和 `continue` 是否出现在循环中、`return` 是否出现在函数里。EX4 则把这些通过检查的结构翻成汇编，并通过模拟器确认它真的能跑。
+
+仓库中的批量测试脚本把这一过程固定下来。EX1 用 `mandrill-src` 下的 6 个样例和标准 lexerout 比对；EX2 用 5 个正常样例和 5 个异常样例分别验证 Pass 和 Error；EX3 则在 6 个正常样例之外再检查 15 个语义错误样例；EX4 用 5 组输入/答案文件做端到端验证。相比“看起来像对了”的手工检查，这种脚本式验证更像真正的实验记录，因为输入、输出和判定规则都明确写在仓库里。
+
+为了保留实现证据，下面摘录三段关键代码和脚本逻辑。它们不是为了堆材料，而是为了说明算法确实落在了真实代码里：词法阶段依赖关键字表和扫描循环，语义阶段依赖循环和函数上下文，后端则依赖编译入口和批量执行脚本。
+
+\subsection*{关键代码与脚本摘录}
+\begin{lstlisting}[style=mandrillcode,caption={EX1 词法分析器中的关键字表与扫描循环},label={lst:lexer-code}]
+static {
+    keywords = new HashMap<>();
+    keywords.put("if", TokenType.IF);
+    keywords.put("else", TokenType.ELSE);
+    keywords.put("while", TokenType.WHILE);
+    keywords.put("read", TokenType.READ);
+    keywords.put("put", TokenType.PUT);
+    keywords.put("write", TokenType.WRITE);
+    keywords.put("get", TokenType.GET);
+    keywords.put("func", TokenType.FUNC);
+    keywords.put("global", TokenType.GLOBAL);
+    keywords.put("local", TokenType.LOCAL);
+    keywords.put("return", TokenType.RETURN);
+    keywords.put("break", TokenType.BREAK);
+    keywords.put("continue", TokenType.CONTINUE);
+}
+
+public List<Token> scanTokens() {
+    tokens = new ArrayList<>();
+    line = 1;
+    column = 0;
+    while (true) {
+        currentChar = reader.read();
+        if (currentChar == -1) {
+            break;
+        }
+        column++;
+        scanToken();
+    }
+    tokens.add(new Token(TokenType.EOF, "<EOF>", line, column + 1));
+    return tokens;
+}
+\end{lstlisting}
+
+\begin{lstlisting}[style=mandrillcode,caption={EX3 语义检查器中的循环和返回约束},label={lst:semantic-code}]
+@Override
+public MandrillType visitJumpStmt(MandrillParser.JumpStmtContext ctx) {
+    if (ctx.Break() != null) {
+        if (loopNestingLevel == 0) {
+            error(ctx, "break statement must be inside a loop");
+        }
+    } else if (ctx.Continue() != null) {
+        if (loopNestingLevel == 0) {
+            error(ctx, "continue statement must be inside a loop");
+        }
+    } else if (ctx.Return() != null) {
+        if (functionNestingLevel == 0) {
+            error(ctx, "return statement must be inside a function");
+        }
+    }
+    return MandrillType.UNKNOWN;
+}
+\end{lstlisting}
+
+\begin{lstlisting}[style=mandrillcode,caption={EX4 编译器入口和端到端测试},label={lst:backend-code}]
+public String compile(InputStream inputStream) throws IOException {
+    CompileContext context = Compiler.frontend(inputStream);
+    AssemblyBuilder builder = new AssemblyBuilder(context.table());
+    builder.compileProgram(context.tree());
+    return builder.build();
+}
+
+@Test
+void testAddProgram() throws Exception {
+    String asm = """
+            geti 0
+            geti 0
+            eval 65537
+            puti 0
+            jump 4294967295
+            """;
+    assertEquals("8", runAssembly(asm, "3 5"));
+}
+\end{lstlisting}
+
+\begin{lstlisting}[style=mandrillcode,caption={EX2 和 EX4 的批量验证脚本摘录},label={lst:scripts}]
+for filec in $(ls $normaldir/*.mds); do
+    fileout="PASS.txt"
+    echo "Pass" >$fileout
+    cp $filec data.mds
+    timeout 2 $CCHK <data.mds 1>data.parserout
+    diff data.parserout "$fileout" >parserout.diff.txt
+done
+
+for filec in $(ls $normaldir/*.mds); do
+    cp $filec data.mds
+    cp $filein mandrill.in
+    timeout 2 $MDC data.mds data.asm
+    timeout 2 $MDS data.asm mandrill.in data.out
+    diff data.out "$fileans" >ans.diff.txt
+done
+\end{lstlisting}
+
+\section{数据记录与分析}
+仓库中的样例规模是明确的：EX1 有 6 个词法样例，EX2 有 5 个正常样例和 5 个异常样例，EX3 有 6 个正常样例和 15 个语义错误样例，EX4 有 5 组输入和答案文件。这个规模不算夸张，但足够覆盖 Mandrill 2.0 的主干语法和常见错误类型。更重要的是，样例分布和实验阶段是一一对应的，所以测试结果能直接反映某一层算法是否稳定，而不是混杂地反映整条流水线。
+
+从记录上看，EX1 的关键在 token 边界，EX2 的关键在优先级和语句归约，EX3 的关键在作用域和类型状态，EX4 的关键在调用约定和跳转标签。这样的划分让调试思路很清楚：如果 lexer 出错，后面的阶段都不用看；如果 parser 能过但语义失败，问题多半在符号表或上下文；如果编译结果和答案不一致，就要回到地址计算和控制流上排查。批量脚本的价值就在这里，它把每一层的“对不对”变成可复核的文本输出，而不是靠主观判断。
+
+从工程角度看，这份实现比较稳的地方在于“前面收紧、后面再放开”。EX3 的符号收集把函数、参数和局部变量的布局先固定下来，EX4 再根据这个布局生成汇编，因此函数调用、递归和数组访问都能保持一致的帧结构。单元测试则把指令级行为单独拉出来，比如加法、条件跳转和函数返回，这样当端到端样例不通过时，可以先判断是编译器错了，还是模拟器本身的指令语义错了。
+
+\section{结论}
+Mandrill 2.0 编译器实验最终完成了一条完整且可验证的实现链路。这个链路里最有价值的不是某个类写得多复杂，而是每一层算法都和下一层严格对齐：词法把字符变成 token，语法把 token 变成结构，语义把结构放回上下文里检查，代码生成再把正确结构翻译成可执行指令。这样的实现方式朴素，但对课程实验来说足够可靠，也最容易通过样例和脚本证明正确性。
+
+从结果上看，仓库中的正常样例能够稳定通过，异常样例能在对应阶段被拦住，端到端执行也能得到与标准答案一致的输出。这说明该实现已经把 Mandrill 2.0 的主要语法、语义和执行机制串起来了，达到了实验要求。
+
+\begin{thebibliography}{9}
+\bibitem{mandrill-guide} \texttt{docs/Mandrill 2.0项目及语法概览.md}，Mandrill 2.0 语言参考手册。
+\bibitem{antlr} Terence Parr. ANTLR 4 Documentation and Runtime. \url{https://www.antlr.org/}
+\bibitem{repo} Compilers 仓库中的各阶段实现文件，包括 \texttt{EX1}、\texttt{EX2}、\texttt{EX3}、\texttt{EX4} 的源代码、脚本与测试样例。
+\end{thebibliography}
+
+\end{document}

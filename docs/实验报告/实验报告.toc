@@ -1,0 +1,21 @@
+\contentsline {section}{\numberline {1}实验目的}{2}{section.1}%
+\contentsline {section}{\numberline {2}实验原理}{2}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Mandrill 2.0 语言与编译流程}{2}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}词法分析原理}{3}{subsection.2.2}%
+\contentsline {subsection}{\numberline {2.3}语法分析原理}{3}{subsection.2.3}%
+\contentsline {subsection}{\numberline {2.4}语义分析原理}{3}{subsection.2.4}%
+\contentsline {subsection}{\numberline {2.5}代码生成与模拟执行原理}{4}{subsection.2.5}%
+\contentsline {section}{\numberline {3}实验环境}{4}{section.3}%
+\contentsline {section}{\numberline {4}实验步骤}{4}{section.4}%
+\contentsline {subsection}{\numberline {4.1}EX1：词法分析器实现与验证}{4}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}EX2：语法分析器实现与验证}{4}{subsection.4.2}%
+\contentsline {subsection}{\numberline {4.3}EX3：语义检查器实现与验证}{5}{subsection.4.3}%
+\contentsline {subsection}{\numberline {4.4}EX4：编译器与模拟器实现验证}{5}{subsection.4.4}%
+\contentsline {section}{\numberline {5}实验数据记录与分析}{5}{section.5}%
+\contentsline {subsection}{\numberline {5.1}样例规模统计}{5}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}关键实验现象}{5}{subsection.5.2}%
+\contentsline {subsection}{\numberline {5.3}结果分析}{6}{subsection.5.3}%
+\contentsline {subsection}{\numberline {5.4}关键代码清单}{6}{subsection.5.4}%
+\contentsline {subsection}{\numberline {5.5}测试脚本摘录}{8}{subsection.5.5}%
+\contentsline {section}{\numberline {6}实验结果讨论}{9}{section.6}%
+\contentsline {section}{\numberline {7}实验结论}{9}{section.7}%
