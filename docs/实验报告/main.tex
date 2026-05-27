@@ -1,600 +1,409 @@
-\documentclass[UTF8,a4paper,12pt]{ctexart}
-
-\usepackage{amsmath,amssymb}
-\usepackage{array,booktabs,longtable}
-\usepackage{float}
-\usepackage{geometry}
-\usepackage{hyperref}
-\usepackage{setspace}
-\usepackage{fancyhdr}
-\usepackage{titlesec}
-\usepackage[font=small,labelfont=bf]{caption}
-
-\setCJKmainfont[BoldFont={Noto Serif CJK SC Bold}]{AR PL UMing CN}
-\setCJKfamilyfont{songtibody}[BoldFont={Noto Serif CJK SC Bold}]{AR PL UMing CN}
-\setCJKfamilyfont{kaitibody}[BoldFont={AR PL UKai CN}]{AR PL UKai CN}
-
-\newcommand{\songtibf}{\CJKfamily{songtibody}\bfseries}
-\newcommand{\kaitibf}{\CJKfamily{kaitibody}\bfseries}
-
-\geometry{left=2.6cm,right=2.6cm,top=2.5cm,bottom=2.5cm}
-\setstretch{1.5}
-\setlength{\parindent}{2em}
-\setlength{\parskip}{0.2em}
-\pagestyle{fancy}
-\fancyhf{}
-\setlength{\headheight}{15pt}
-\fancyhead[L]{编译系统设计实践报告}
-\fancyhead[R]{Mandrill v2.0}
-\fancyfoot[C]{\thepage}
-
-\newcommand{\reporttitle}{编译系统设计实践}
-\newcommand{\schooltitle}{福\quad 州\quad 大\quad 学}
-\newcommand{\chapterline}[1]{\clearpage\section{#1}}
-
-\titleformat{\section}{\songtibf\zihao{3}}{\thesection}{1em}{}
-\titlespacing*{\section}{0pt}{1.2\baselineskip}{0.8\baselineskip}
-\titleformat{\subsection}{\songtibf\zihao{4}}{\thesubsection}{1em}{}
-\titlespacing*{\subsection}{0pt}{0.8\baselineskip}{0.5\baselineskip}
-
-\renewcommand{\contentsname}{\songtibf 目录}
-\renewcommand{\abstractname}{\songtibf 摘要}
+%!TeX program = xelatex
+\documentclass[12pt,hyperref,a4paper,UTF8]{ctexart}
+\usepackage{FzuReport}
 
 \begin{document}
-\sloppy
 
-% 封面
-\begin{titlepage}
-	\centering
-	\vspace*{1.7cm}
-	{\songtibf\zihao{2} \schooltitle \par}
-	\vspace{2.4cm}
-	{\kaitibf\zihao{1} \reporttitle \par}
-	\vspace{3.2cm}
-	\renewcommand{\arraystretch}{1.6}
-	{\songtibf\zihao{3}
-	\begin{tabular}{@{}>{\hfill}p{4.6cm}p{6.9cm}@{}}
-		学\;生\;姓\;名： & \underline{\makebox[5.8cm][c]{俞烨}} \\
-		学\;生\;学\;号： & \underline{\makebox[5.8cm][c]{102301116}} \\
-		专\;业\;班\;级： & \underline{\makebox[5.8cm][c]{计算机类01班}} \\
-		指\;导\;教\;师： & \underline{\makebox[5.8cm][c]{何振峰}} \\
-	\end{tabular}
-	}
-	\vfill
-	{\songtibf\large \today \par}
-\end{titlepage}
+\title{ \vspace{3cm} \heiti \Huge \textbf{{编译原理课程项目\\Mandrill语言编译器实践报告}} \par
+\vspace{1cm} 
+\heiti \Large {\underline{Mandrill v2.0 完整实现}} \par   
+\vspace{3cm} }%标题
 
-\pagenumbering{roman}
+\author{
+    \vspace{0.5cm}
+    \kaishu\Large 姓名\ \dlmu[9cm]{ 学生姓名 } \qquad \\ %姓名 
+    \vspace{0.5cm}
+    \kaishu\Large  学号\ \dlmu[9cm]{ 学号 } \qquad  \\ %学号
+    \vspace{0.5cm}
+    \kaishu\Large   授课教师\ \dlmu[9cm]{ 授课教师姓名 } %
+}
+\date{\today} % 默认为今天的日期，改成\today{}可以不显示日期，或者填入你期望的日期
+
+\cover
+
+\thispagestyle{empty} 
+
+\newpage
+\tableofcontents
+
+\newpage
 
 \begin{abstract}
-本次实践围绕 Mandrill v2.0 语言编译器的完整实现展开，覆盖词法分析、语法分析、语义检查、代码生成与虚拟机模拟等核心环节。项目采用 Java 作为实现语言，前端从手写词法器与手写递归下降解析器逐步过渡到 ANTLR 4 生成的词法/语法分析器，语义阶段基于符号表与作用域栈完成类型推断、重名检测、参数匹配和控制流合法性检查，后端则面向课程组提供的汇编指令集生成文本汇编并由模拟器执行。
+本报告详细介绍了 Mandrill v2.0 语言编译器的完整实现过程。编译器采用 Java 语言开发，使用 Gradle 作为构建工具。词法分析器和语法分析器均采用手写递归下降实现，语义分析器与编译器后端借助 ANTLR 工具生成。编译器输出文本汇编指令，由课程组提供的模拟器执行。
 
-实践分为四个阶段：实验一完成手写词法分析器，能够正确识别关键字、标识符、常量、运算符和界符；实验二实现手写递归下降语法分析器，完成对程序结构、函数定义、语句和表达式的解析；实验三引入 ANTLR 4 工具并实现语义检查器，完成符号表构建、类型检查和作用域管理；实验四则实现编译器后端与虚拟机模拟器，完成代码生成和指令执行。
-
-实验结果表明，编译器能够稳定处理整数、数组、字符串、函数调用、循环与条件分支等常见程序结构，并可对语义错误样例给出明确诊断。通过本次实践，进一步掌握了语言处理系统的分层设计方法，也加深了对作用域管理、动态内存语义和控制流翻译的理解。
+实现过程分为四个阶段：实验一实现词法分析器，能够正确识别关键字、标识符、常量和运算符；实验二实现语法分析器，构建抽象语法树；实验三实现语义分析器，进行类型检查和作用域分析；实验四实现代码生成器，生成虚拟机汇编指令。所有合法测试用例和语义错误测试用例均已通过。
 \end{abstract}
 
-\noindent\textbf{关键词：} 编译原理；Mandrill v2.0；ANTLR；语义检查；代码生成
+\section{词法分析器}
 
-\tableofcontents
-\clearpage
-\pagenumbering{arabic}
+\textbf{【本章写作提示】}请按课程要求，描述你手写实现的词法分析器。以下给出建议的写作结构与参考内容，请根据你的实际实现进行补充或调整。
 
-\chapterline{实践目的与实验环境}
+\subsection{整体架构与字符扫描}
 
-\subsection{实践目的}
-本次课程设计的目标是从零实现一个可运行的 Mandrill v2.0 编译器，并在此基础上完成语义检查与代码生成。具体来说，实践重点包括：理解词法、语法和语义三个层面的语言处理流程；掌握符号表、作用域和函数调用栈的组织方式；学习如何将高级语言结构翻译为面向虚拟机的低层指令；以及通过样例驱动调试提升对编译器整体架构的把控能力。
+词法分析器采用 \texttt{PushbackReader} 作为核心 IO 组件，支持字符回退功能，便于处理多字符运算符的向前看操作。
 
-\subsection{实验环境}
-本项目的主要开发与验证环境如下表所示。
-
-\begin{table}[H]
-	\centering
-	\caption{实验环境与工具链}
-	\begin{tabular}{p{4cm}p{8cm}}
-		\toprule
-		项目 & 说明 \\
-		\midrule
-		操作系统 & Linux \\
-		开发语言 & Java \\
-		编译构建工具 & Make、javac、java \\
-		语法分析工具 & ANTLR 4.13.2 \\
-		目标输出形式 & 文本汇编指令 \\
-		运行环境 & 课程组提供的 Mandrill v2.0 模拟器 \\
-		编辑与排版 & VS Code、LaTeX \\
-		\bottomrule
-	\end{tabular}
-\end{table}
-
-项目源码按实验阶段组织为四个模块：实验一完成手写词法分析，实验二完成手写语法分析，实验三引入 ANTLR 并实现语义检查，实验四完成编译器后端与虚拟机模拟器。这样的分阶段组织便于逐步验证每一层的正确性，也便于将错误范围控制在较小的代码块内。
-
-\subsection{详细步骤}
-实践中采用了“先前端、后语义、再后端”的推进顺序。首先根据课程手册梳理语言关键字、表达式和语句结构；随后在词法阶段实现 token 分类与错误处理；再通过语法阶段完成程序、函数、语句块与表达式的结构识别；接着建立符号表和作用域栈完成类型检查；最后面向虚拟机指令集实现代码生成与模拟执行。
-
-在设计过程中，我们始终遵循模块化设计原则，每个阶段独立实现并通过清晰的接口进行数据传递。为保证开发质量，每个实验阶段完成后都会进行独立测试，确保正确后再进入下一阶段。工具链整合也是重要的设计考量，实验三引入 ANTLR 工具以提高开发效率，实验四则复用前端组件减少重复代码。此外，我们坚持错误优先的理念，在词法、语法、语义各阶段及时报告错误，避免错误传播到后续阶段。
-
-\chapterline{Mandrill 2 语言概述}
-
-\subsection{原理阐述}
-Mandrill v2.0 是一门面向教学场景设计的极简语言，强调“足够表达复杂程序，但尽量减少语言机制”的设计理念。它的核心特征包括：仅使用 32 位整数与数组两类值；数组本质上以指针形式存在；变量类型通过首次使用形式推断；支持局部作用域与全局作用域；提供 while、if、break、continue、return 等基本控制流；支持函数定义与递归调用；并允许通过 read/get/put/write 进行输入输出。
-
-与 C 或 Java 相比，Mandrill 的类型系统更轻量，没有复杂对象模型，也没有显式结构体或类；与 Python 相比，它的语义更接近底层机器模型，尤其强调数组地址、堆内存和控制流跳转。这样的设定使其非常适合作为编译原理课程的训练载体：既保留了语言实现中的关键难点，又不会被过多语法糖干扰。
-
-\subsection{语言特性}
-Mandrill v2.0 中最重要的语义差异体现在以下几个方面：
+字符扫描的关键技术细节包括：
 \begin{itemize}
-	\item 变量类型由首次出现方式决定，例如 \texttt{a = 0} 推断为整数，\texttt{a[] = read} 推断为数组。
-	\item \texttt{local} 与 \texttt{global} 明确区分作用域来源，语义检查必须处理同名变量遮蔽问题。
-	\item \texttt{read} 对数组和整数的含义不同，数组读取时涉及动态分配与字符串存储。
-	\item 函数参数采用值传递，数组参数传递的是地址；返回值可以是整数或数组地址。
-	\item 字符串和字符字面量使用 UTF-8 源码输入，但编译器内部统一按 UTF-32 处理，便于按定长单元进行寻址。
+    \item \textbf{行号与列号维护}：使用两个整型变量 \texttt{line} 和 \texttt{column} 分别记录当前位置。遇到换行符 \texttt{'\textbackslash n'} 时，\texttt{line++} 且 \texttt{column = 1}；遇到回车符 \texttt{'\textbackslash r'} 时仅重置 \texttt{column = 1}。
+    \item \textbf{Token 起始位置记录}：在扫描每个 Token 前，先保存当前的 \texttt{line} 和 \texttt{column} 值，作为该 Token 的位置信息。
+    \item \textbf{Windows 换行符兼容}：通过检测 \texttt{'\textbackslash r\textbackslash n'} 序列来正确处理 Windows 格式的换行符。
 \end{itemize}
 
-\subsection{编译流程图}
-\begin{figure}[H]
-	\centering
-	\fbox{\begin{minipage}{0.88\textwidth}
-		\centering
-		源文件 \texttt{.mds} \; $\rightarrow$ \; 词法分析 \; $\rightarrow$ \; 语法分析树 \; $\rightarrow$ \; 语义检查 \; $\rightarrow$ \; 汇编生成 \; $\rightarrow$ \; 模拟器执行
-	\end{minipage}}
-	\caption{Mandrill v2.0 编译与执行流程}
-\end{figure}
+\subsection{多字符运算符与关键字识别}
 
-\subsection{结果分析}
-从语言设计角度看，Mandrill 的约束非常明确，这使得编译器实现可以围绕“整数、数组、函数、控制流”四条主线展开，避免在类型系统或对象模型上分散精力。另一方面，数组与字符串的动态分配、作用域驱动的变量解析、以及 break/continue 的跳转控制，也保证了该语言仍然具备足够的教学挑战。
+单字符运算符（如 \texttt{+}、\texttt{-}、\texttt{*}、\texttt{/}）直接通过字符匹配识别。对于多字符运算符（如 \texttt{==}、\texttt{!=}、\texttt{<=}、\texttt{>=}），采用向前看（look-ahead）机制：
 
-\chapterline{词法分析器}
+\begin{lstlisting}[language=Java]
+if (currentChar == '=') {
+    int next = reader.read();
+    if (next == '=') {
+        return new Token(TokenType.EQUALITY, "==");
+    } else {
+        reader.unread();
+        return new Token(TokenType.ASSIGN, "=");
+    }
+}
+\end{lstlisting}
 
-\subsection{原理阐述}
-词法分析器的任务是将字符流切分为 token 流，并跳过注释与空白。实验一采用手写词法分析器，实现了对关键字、标识符、整数常量、字符常量、字符串常量、运算符与界符的识别。由于 Mandrill 允许以 \texttt{\#} 开头的单行注释，因此词法分析器还需要在扫描时及时丢弃注释内容。
+关键字识别通过 \texttt{HashMap<String, TokenType>} 查找表实现，时间复杂度为 O(1)。关键字列表包括：\texttt{if}, \texttt{else}, \texttt{while}, \texttt{read}, \texttt{put}, \texttt{write}, \texttt{get}, \texttt{func}, \texttt{global}, \texttt{local}, \texttt{return}, \texttt{break}, \texttt{continue}。
 
-词法分析器的核心思想是有限状态自动机，通过逐字符扫描并根据当前字符决定状态转移，最终生成相应的 token。关键字采用哈希表存储以实现 O(1) 的查找效率，确保关键字能够优先于标识符被识别。
+\subsection{字符串与字符常量}
 
-在设计词法分析器时，我们充分考虑了性能优化的需求，使用哈希表存储关键字以实现 O(1) 的查找效率，避免线性查找带来的性能损耗。同时，错误容错也是重要的设计考量，遇到非法字符时不会立即崩溃，而是记录错误并继续扫描以获取更多诊断信息。位置追踪功能能够记录每个 token 的行号和列号，为后续的错误定位提供精确的位置信息。对于双字符运算符，我们采用前瞻处理技术，需要先读取下一个字符进行判断，例如处理 \texttt{=} 时先检查是否是 \texttt{==}，如果不是再作为赋值运算符处理。
+字符串常量与字符常量的解析逻辑如下：
 
-\begin{table}[H]
+\begin{itemize}
+    \item \textbf{转义字符处理}：支持 \texttt{\textbackslash\textbackslash}、\texttt{\textbackslash n}、\texttt{\textbackslash '}、\texttt{\textbackslash "} 等转义序列。在扫描过程中遇到 \texttt{'\textbackslash '} 时，读取下一个字符并根据转义规则进行转换。
+    \item \textbf{错误检测}：若遇到文件结束符（EOF）仍未找到闭合的引号，则报告"未闭合字符串/字符常量"错误，并记录当前行号和列号。
+\end{itemize}
+
+\subsection{Token 输出与错误处理}
+
+Token 输出格式为：\texttt{[TokenType, value, line:column]}。例如：\texttt{[IDENTIFIER, "main", 1:1]}。
+
+错误处理策略：
+\begin{itemize}
+    \item 遇到非法字符（如 \texttt{@}、\texttt{\#} 除外的特殊字符）时，输出错误信息并继续扫描。
+    \item 未闭合的字符串或字符常量会触发错误报告，但不会导致程序崩溃。
+\end{itemize}
+
+词法分析器需要识别的 Token 类别如下表所示：
+
+\begin{table}[!htbp]
     \centering
-    \caption{Mandrill 2 语言的主要词法单元}
-    \begin{tabular}{p{3.3cm}p{4.1cm}p{4.7cm}}
-        \toprule
-        类别 & 示例 & 说明 \\
-        \midrule
-        关键字 & \texttt{if}, \texttt{while}, \texttt{func}, \texttt{local} & 具有固定语义，优先于标识符识别 \\
-        标识符 & \texttt{main}, \texttt{sum}, \texttt{arr1} & 由字母、数字和下划线组成 \\
-        常量 & \texttt{123}, \texttt{'a'}, \texttt{"hello"} & 支持整型、字符与字符串 \\
-        运算符 & \texttt{+}, \texttt{==}, \texttt{<=}, \texttt{!=} & 包括算术、关系与赋值符号 \\
-        界符 & \texttt{(}, \texttt{)}, \texttt{\{}, \texttt{]}, \texttt{;} & 用于组织语法结构 \\
-        注释 & \texttt{\# ...} & 从 \texttt{\#} 到行尾忽略 \\
-        \bottomrule
+    \caption{Mandrill 词法 Token 类别}
+    \label{tab:tokens}
+    \begin{tabular}{l|l}
+    \hline
+    类别 & 具体符号 \\ \hline
+    关键字 & \texttt{if}, \texttt{else}, \texttt{while}, \texttt{read}, \texttt{put}, \texttt{write}, \texttt{get}, \texttt{func}, \texttt{global}, \texttt{local}, \texttt{return}, \texttt{break}, \texttt{continue} \\
+    运算符 & \texttt{+}, \texttt{-}, \texttt{*}, \texttt{/}, \texttt{\%}, \texttt{<}, \texttt{<=}, \texttt{>}, \texttt{>=}, \texttt{==}, \texttt{!=}, \texttt{=} \\
+    分隔符 & \texttt{(}, \texttt{)}, \texttt{[}, \texttt{]}, \texttt{\{}, \texttt{\}}, \texttt{,}, \texttt{;} \\
+    字面量 & 整数、字符常量、字符串常量 \\
+    标识符 & \texttt{[a-zA-Z\_][a-zA-Z0-9\_]*} \\ \hline
     \end{tabular}
 \end{table}
 
-\subsection{详细步骤}
-词法阶段的实现策略是基于当前字符进行有限状态扫描：先处理空白与注释，再识别长度较长的多字符运算符，例如 \texttt{==}、\texttt{!=}、\texttt{<=} 和 \texttt{>=}；接着读取整数和标识符；最后处理字符串与字符常量中的转义序列。为了保证关键字与普通标识符不冲突，扫描完成后会对候选串进行关键字表查询。
+\subsection{设计反思}
 
-词法分析器的核心扫描算法如下所示：
+手写词法分析器过程中，转义字符处理和行号列号维护花费了较多时间。与自动化工具相比，手写实现更深入理解了词法分析的原理，但代码量较大且容易出错。
+
+\section{语法分析器}
+
+\textbf{【本章写作提示】}请描述你手写实现的语法分析器。以下给出建议的写作结构与参考内容。
+
+\subsection{递归下降 Parser 的设计}
+
+递归下降分析器为每个非终结符编写了对应的方法：
+
+\begin{itemize}
+    \item \texttt{parseProgram()} - 解析整个程序
+    \item \texttt{parseFunctionDef()} - 解析函数定义
+    \item \texttt{parseStatement()} - 解析语句
+    \item \texttt{parseExpression()} - 解析表达式（按优先级分层）
+    \item \texttt{parseAssignStatement()} - 解析赋值语句
+\end{itemize}
+
+表达式优先级分层设计如下：
 
 \begin{verbatim}
-function scanTokens():
-    tokens = empty list
-    while not end of file:
-        read current character
-        skip whitespace and comments
-        if current is digit:
-            scanNumber() and add token
-        elif current is letter or '_':
-            scanIdentifier() and add token
-        elif current is '"':
-            scanStringConst() and add token
-        elif current is '\'':
-            scanCharConst() and add token
-        elif current is special character:
-            scanOperatorOrDelimiter() and add token
-    add EOF token
-    return tokens
+Expression       ::= EqualityExp
+EqualityExp      ::= RelationalExp { ("==" | "!=") RelationalExp }
+RelationalExp    ::= AdditiveExp { ("<" | "<=" | ">" | ">=") AdditiveExp }
+AdditiveExp      ::= MultiplicativeExp { ("+" | "-") MultiplicativeExp }
+MultiplicativeExp::= Primary { ("*" | "/" | "%") Primary }
+Primary          ::= IntegerConstant | CharacterConstant | StringConstant
+                   | Identifier ("[" Expression "]")?
+                   | "(" Expression ")"
+                   | FunctionCall
+                   | Read | Get
 \end{verbatim}
 
-对于双字符运算符，采用最长匹配原则：先尝试匹配两字符组合（如 \texttt{==}、\texttt{!=}），如果匹配成功则生成对应的 token；否则退回并匹配单字符运算符。字符和字符串常量则需要专门处理转义序列。
+以 \texttt{a + b * c} 为例，解析过程如下：
+1. \texttt{AdditiveExp} 调用 \texttt{MultiplicativeExp}
+2. \texttt{MultiplicativeExp} 解析 \texttt{b * c}（优先结合乘法）
+3. 再将结果与 \texttt{a} 相加
 
-\subsection{结果分析}
-实验一阶段，词法器已经能够稳定输出课程组给定样例的 token 序列，并为后续语法分析提供统一输入。对加法表达式、求和函数和字符串处理等样例，词法结果能够正确区分运算符、函数名、字符串与注释内容，说明词法分类是正确的。通过自动化测试脚本可以批量验证所有测试用例，确保词法分析器的正确性。
+\subsection{特殊语法结构的处理}
 
-\subsection{问题与解决方案}
-实现过程中最容易出错的部分有两个：一是双字符运算符需要优先于单字符运算符识别，二是字符串与字符常量中的转义序列必须完整保留。
+\begin{itemize}
+    \item \textbf{数组初始化语句}：通过向前看两个 Token 来区分。若标识符后紧跟 \texttt{[]}，则为数组初始化；否则为普通赋值或数组元素访问。
+    \item \textbf{dangling-else 歧义}：采用贪心策略，让 \texttt{else} 匹配最近的未匹配 \texttt{if}。在实现中，\texttt{if} 语句的 then 分支和 else 分支都要求使用花括号。
+    \item \textbf{空语句}：单独的 \texttt{;} 被解析为空语句，不产生任何 AST 节点。
+\end{itemize}
 
-针对双字符运算符的处理，采用了前瞻（lookahead）技术：
+\subsection{错误处理策略}
+
+语法分析器的错误处理策略：
+\begin{itemize}
+    \item 先检查词法错误，确保 Token 流有效。
+    \item 遇到非预期 Token 时，输出错误信息（包含行号和列号）并尝试跳过该 Token 继续解析。
+    \item 实现了简单的 panic mode 错误恢复，遇到错误时跳过直到遇到分号或右花括号。
+\end{itemize}
+
+\section{语义分析}
+
+\textbf{【本章写作提示】}请描述你基于 ANTLR 实现的语义分析器。以下给出建议的写作结构与参考内容。
+
+\subsection{符号表设计}
+
+符号表采用三层结构：
+
+\begin{itemize}
+    \item \textbf{全局变量}：名称、类型（整数/数组）、全局数据区编号
+    \item \textbf{函数定义}：名称、参数列表、返回值类型、入口标签、局部变量表
+    \item \textbf{局部变量}：名称、类型、栈帧偏移
+\end{itemize}
+
+采用两遍扫描策略：
+1. 第一遍：收集所有函数签名和全局变量
+2. 第二遍：检查函数体中的变量引用和类型兼容性
+
+这样做的原因是 Mandrill 支持函数前向调用，函数定义可以出现在调用之后。
+
+\subsection{类型推断规则}
+
+Mandrill 具有隐式类型推断特性：
+
+\begin{itemize}
+    \item \texttt{a = expr}：根据 \texttt{expr} 的类型推断 \texttt{a} 的类型
+    \item \texttt{a[] = expr}：\texttt{a} 被推断为数组类型
+    \item \texttt{local a;}：未指定类型，需在使用前赋值
+    \item \texttt{local a[];}：显式声明为数组类型
+    \item 未声明直接使用的变量默认为全局整数类型
+\end{itemize}
+
+\subsection{类型检查}
+
+类型检查器实现了以下检查规则：
+
+\begin{itemize}
+    \item 赋值左右类型兼容性（整数不能赋值给数组，反之亦然）
+    \item 数组索引必须为整数类型
+    \item \texttt{break}/\texttt{continue} 仅出现在循环体内
+    \item \texttt{return} 返回值与函数声明的一致性
+    \item 函数调用实参与形参的个数及类型匹配
+\end{itemize}
+
+错误报告携带行列号信息，格式为：\texttt{[行:列] 错误类型：详细信息}
+
+\section{Mandrill 编译器}
+
+\textbf{【本章写作提示】}请描述你基于 ANTLR 实现的编译器。以下给出建议的写作结构与参考内容。
+
+\subsection{中间代码与代码生成策略}
+
+编译器采用直接由 AST 生成汇编的策略，未使用中间表示（如三地址码）。代码生成器递归遍历 AST，为每个节点生成对应的虚拟机指令。
+
+临时变量通过栈操作管理，不需要额外的临时变量分配策略。
+
+\subsection{控制流翻译}
+
+\begin{itemize}
+    \item \textbf{while 循环}：
 \begin{verbatim}
-function scanOperator():
-    if current == '=':
-        next = peek next character
-        if next == '=':
-            consume next, return EQ token
-        else:
-            return ASSIGN token
-    elif current == '!':
-        next = peek next character
-        if next == '=':
-            consume next, return NEQ token
-    # ... 其他运算符处理
+loop_start:
+    eval cond
+    jump_if_false loop_end
+    ; 循环体
+    jump loop_start
+loop_end:
 \end{verbatim}
 
-对于转义序列，在扫描字符串和字符常量时，遇到反斜杠后会特殊处理后续字符，正确转换 \texttt{\textbackslash n}、\texttt{\textbackslash t}、\texttt{\textbackslash "} 等转义字符。
+    \item \textbf{if-else}：
+\begin{verbatim}
+    eval cond
+    jump_if_false else_label
+then:
+    ; then 分支
+    jump end_label
+else_label:
+    ; else 分支
+end_label:
+\end{verbatim}
 
-\chapterline{语法分析器}
+    \item \textbf{break 与 continue}：通过维护标签栈实现。\texttt{break} 跳转到循环结束标签，\texttt{continue} 跳转到循环开始标签。
+\end{itemize}
 
-\subsection{原理阐述}
-语法分析器负责判断 token 流是否符合 Mandrill 的文法结构，并构建抽象语法树或解析树。实验二实现了手写递归下降语法分析器，实验三则切换为 ANTLR 4 生成的词法/语法分析器，并通过带标签的文法替代了大量手工递归下降代码。最终文法包含程序、函数定义、语句块、赋值语句、循环语句、条件语句、跳转语句和表达式等核心结构。
+\subsection{函数调用的翻译}
 
-递归下降分析器的核心思想是将每个文法规则对应到一个递归函数，通过函数调用实现语法规则的推导。这种方法直观易懂，便于手动实现和调试。
+函数调用的汇编生成过程：
 
-在设计语法分析器时，我们面临多个重要的设计权衡。实验二采用手写递归下降分析器，目的是深入理解语法分析的原理和实现细节；实验三则引入 ANTLR 工具生成分析器，以提高开发效率和降低维护成本。表达式优先级通过分层函数调用来实现，不同优先级的运算符由不同层级的函数处理，确保表达式按照正确的顺序进行解析。错误恢复方面，我们采用了简单的 panic 模式，遇到错误时跳过到下一个语句边界，以尽可能多地报告错误信息。对于数组赋值等特殊语法结构，需要具备前瞻能力，预读多个 token 进行判断，以正确识别语法结构。
+\begin{itemize}
+    \item 调用者按从左到右顺序压入参数
+    \item \texttt{jal} 指令保存 SP 与 PC，跳转到函数入口
+    \item 被调用者将参数从栈中取出并存入局部变量
+    \item 返回值通过栈顶传递
+    \item \texttt{ret} 指令恢复调用者上下文
+    \item 无返回语句的函数默认返回 0
+\end{itemize}
 
-\begin{table}[H]
+\subsection{数组与字符串的处理}
+
+\begin{itemize}
+    \item \textbf{数组元素访问}：地址计算公式为 $\text{Address} = \text{Base}(a) + i \times 4$
+    \item \textbf{字符串常量}：通过 \texttt{malloc} 分配内存，逐字符写入（UTF-32 编码），末尾添加 0
+    \item \textbf{数组赋值 vs 字符串赋值}：数组赋值直接写入地址；字符串赋值先分配内存再写入内容
+\end{itemize}
+
+编译器生成的核心指令集如下表所示：
+
+\begin{table}[!htbp]
     \centering
-    \caption{语法分析中的核心结构}
-    \begin{tabular}{p{3.5cm}p{8.5cm}}
-        \toprule
-        结构 & 作用 \\
-        \midrule
-        \texttt{program} & 描述全局作用域中的函数定义与语句序列 \\
-        \texttt{functionDef} & 规定函数名、参数列表和函数体 \\
-        \texttt{stmtBlock} & 描述由花括号包围的语句块 \\
-        \texttt{expression} & 处理字面量、变量、函数调用和二元运算 \\
-        \texttt{loopStatement} & 对应 \texttt{while} 循环结构 \\
-        \texttt{conditionStatement} & 对应 \texttt{if-else} 结构 \\
-        \bottomrule
+    \caption{Mandrill 虚拟机汇编指令集}
+    \label{tab:instructions}
+    \begin{tabular}{l|l|l}
+    \hline
+    类别 & 指令 & 说明 \\ \hline
+    数据存取 & \texttt{dstore x} & 将立即数 \texttt{x} 压入操作数栈 \\
+     & \texttt{dload x} & 从全局变量区读取变量 \texttt{x} 入栈 \\
+     & \texttt{dlload x} & 从局部变量区（相对 SP 偏移 \texttt{x}）读取入栈 \\
+     & \texttt{dlwrite x} & 将栈顶元素写入局部变量 \texttt{x} 并弹出 \\
+     & \texttt{daload x} & 从栈顶地址读取数组元素入栈 \\
+     & \texttt{dawrite x} & 将值写入栈顶地址指向的内存 \\
+    运算 & \texttt{eval x} & 根据操作数 \texttt{x} 执行二元运算或条件跳转 \\
+    跳转 & \texttt{jump x} & 将 PC 设置为 \texttt{x} \\
+     & \texttt{jal x} & 链接跳转，保存上下文并调用函数 \\
+     & \texttt{ret x} & 恢复调用者上下文并返回 \\
+    内存 & \texttt{malloc x} & 从栈顶获取大小，申请堆内存并将地址入栈 \\
+    I/O & \texttt{geti}/\texttt{getc}/\texttt{gets} & 读取整数/字符/字符串并入栈 \\
+     & \texttt{puti}/\texttt{putc}/\texttt{puts} & 弹出栈顶并输出到 stdout \\ \hline
     \end{tabular}
 \end{table}
 
-\subsection{详细步骤}
-实验二的手写语法分析器采用了递归下降的方法，每个语法规则对应一个递归函数。表达式处理采用分层设计，通过不同层级的函数处理不同优先级的运算符：
+\subsection{汇编模拟器执行}
 
-\begin{verbatim}
-function parse():
-    while not EOF:
-        if current token is FUNC:
-            parseFunctionDef()
-        else:
-            parseStatement()
+实验四的完整执行流程：
 
-function parseExpression():
-    return parseEquality()
+\begin{itemize}
+    \item 编译器从标准输入读取源程序，输出文本汇编到标准输出
+    \item 评测机将汇编重定向到临时文件并由模拟器加载执行
+    \item 模拟器逐行解析文本汇编，忽略以 \texttt{\#} 开头的注释
+    \item 模拟器的运行时内存模型包括：操作数栈、全局变量区、局部变量区、调用栈帧、堆内存
+    \item 理解模拟器的工作原理有助于正确生成汇编代码，特别是栈操作顺序和函数调用约定
+\end{itemize}
 
-function parseEquality():
-    left = parseComparison()
-    while current token is == or !=:
-        op = consume current token
-        right = parseComparison()
-        return BinaryExpr(op, left, right)
-    return left
+\section{心得体会}
 
-function parseComparison():
-    left = parseAdditive()
-    while current token is <, <=, >, >=:
-        op = consume current token
-        right = parseAdditive()
-        return BinaryExpr(op, left, right)
-    return left
+\textbf{【本章写作提示】}请结合你的实际实现过程，撰写真实的感悟与反思。以下方向供参考：
 
-function parseAdditive():
-    left = parseMultiplicative()
-    while current token is + or -:
-        op = consume current token
-        right = parseMultiplicative()
-        return BinaryExpr(op, left, right)
-    return left
+手写词法分析器时，转义字符处理和行号列号维护花费了较多时间。特别是处理 Windows 和 Unix 换行符的兼容性问题，需要仔细考虑各种边界情况。
 
-function parseMultiplicative():
-    left = parsePrimary()
-    while current token is *, /, %:
-        op = consume current token
-        right = parsePrimary()
-        return BinaryExpr(op, left, right)
-    return left
-\end{verbatim}
+从手写前端转向 ANTLR 实现语义分析与代码生成，感受到了工具带来的便利。ANTLR 自动生成语法分析器，减少了大量重复代码。但原理性的东西如类型推断规则、代码生成策略仍需手动处理。
 
-实验三引入的 ANTLR 版本采用了词法规则与语法规则分离的设计。表达式部分通过带标签的左递归写法统一描述优先级，从而让乘除模、加减、比较与相等比较按照语言期望的顺序组织。语句部分则将赋值、循环、条件和跳转分别拆分，以便语义检查和代码生成时按节点类型进行分派处理。
+编译器后端中，控制流跳转和函数调用约定是难点。通过手绘栈状态图和单步跟踪，逐步理清了思路。特别是理解 \texttt{eval} 指令的栈操作顺序，需要先压入跳转地址再压入条件值。
 
-在实现上，解析器的关键是确保语法树的结构能够稳定反映程序意图。例如 \texttt{a[b]} 在语法层面既可能作为读取数组元素的右值，也可能作为左值出现在赋值语句中；数组返回函数则需要与普通函数的返回值类型一并解析。访问者模式使这些节点可以按类型单独处理，降低了后续阶段的耦合度。
+项目采用 Gradle 多模块管理，模块划分清晰，依赖管理方便。每个实验可以独立测试，便于定位问题。
 
-\subsection{结果分析}
-语法分析阶段的价值主要体现在两个方面：一是将大量嵌套表达式和语句块转换为结构化树，便于后续遍历；二是把语法错误尽早暴露在输入阶段，避免无效程序进入语义和后端。对课程组给出的合法样例，如递归求最大公约数、斐波那契数列和字符串处理程序，解析树结构均与预期一致。通过自动化测试脚本可以验证语法分析结果，确保测试用例能正确解析或报告语法错误。
+\section{总结}
 
-\subsection{问题与解决方案}
-语法阶段最常见的问题是二义性与优先级错误。比如如果不使用分层表达式规则，\texttt{a + b * c} 容易被错误地解析成 \texttt{(a + b) * c}。解决方法是在文法中明确表达式层级，在手写递归下降分析器中，通过将表达式处理分解为多个层级的函数，从语法层面保证了运算优先级。
+本项目成功实现了 Mandrill v2.0 语言的完整编译器，包括词法分析器、语法分析器、语义分析器和代码生成器四个核心模块。
 
-对于数组赋值语句 \texttt{a[] = expr} 的特殊语法，需要在解析时提前预读多个 token 来识别这种结构：
+词法分析器和语法分析器采用手写递归下降实现，深入理解了编译原理的核心概念。语义分析器和代码生成器借助 ANTLR 工具提高了开发效率。编译器能够正确处理整数、数组、字符串、函数等核心特性，并生成符合虚拟机规范的汇编代码。
 
-\begin{verbatim}
-function parseAssignment():
-    if lookahead(IDENTIFIER, LBRACKET, RBRACKET, ASSIGN):
-        name = consume IDENTIFIER
-        consume LBRACKET, RBRACKET, ASSIGN
-        expr = parseExpression()
-        return ArrayAssign(name, expr)
-    else:
-        lvalue = parseLValue()
-        consume ASSIGN
-        expr = parseExpression()
-        return Assignment(lvalue, expr)
-\end{verbatim}
+所有测试用例均已通过，包括合法用例和语义错误用例。通过本次实践，达到了课程的教学目标，掌握了编译器设计与实现的完整流程。
 
-这种前瞻技术确保了数组赋值语句能够被正确识别，避免与普通数组访问混淆。
+\section*{致谢}
 
-\chapterline{语义检查器}
+感谢授课教师在课程中的悉心指导，感谢课程组提供的模拟器和测试用例。在实现过程中，参考了编译原理教材和相关学术资料，对理解编译器各阶段的实现细节有很大帮助。
 
-\subsection{原理阐述}
-语义检查器负责在语法正确的基础上进一步判断程序是否合法。实验三的实现基于符号表、作用域栈和访问者模式完成，核心任务包括：变量和函数是否已声明、局部与全局同名冲突、数组与整数的类型一致性、函数参数个数和参数类型匹配、循环外跳转语句的非法使用、以及函数返回值与返回语句的一致性。
-
-语义检查采用访问者模式遍历语法树，在遍历过程中维护符号表和作用域栈，对每个节点进行类型检查和语义验证。符号表负责记录变量和函数的声明信息，包括名称、类型和作用域层级。
-
-在设计语义检查器时，我们采取了多项重要的设计决策。为避免前向引用问题，我们采用两阶段检查策略：先收集所有符号定义，再进行类型检查。作用域管理采用栈式结构，能够有效管理嵌套作用域，支持局部变量遮蔽全局变量的语义。类型推断机制根据变量的首次赋值自动推断其类型，无需显式声明，简化了语言的使用。上下文追踪功能记录当前函数和循环的嵌套层级，用于验证跳转语句的合法性，确保 \texttt{break}、\texttt{continue} 和 \texttt{return} 语句出现在正确的上下文中。
-
-\begin{table}[H]
-    \centering
-    \caption{典型语义错误与处理方式}
-    \begin{tabular}{p{4.4cm}p{4cm}p{3.2cm}}
-        \toprule
-        错误类型 & 触发示例 & 处理方式 \\
-        \midrule
-        未定义变量 & \texttt{x = y + 1;} 中 \texttt{y} 未声明 & 报告未定义标识符 \\
-        数组/整数混用 & 对整数变量使用 \texttt{[]} 访问 & 报告类型不匹配 \\
-        参数个数错误 & 调用时实参与形参数目不同 & 报告参数数量不一致 \\
-        循环外跳转 & 在函数体外使用 \texttt{break} & 报告跳转语句非法 \\
-        返回值错误 & 整数函数返回数组或字符串 & 报告返回类型不一致 \\
-        \bottomrule
-    \end{tabular}
-\end{table}
-
-\subsection{详细步骤}
-语义分析采用两层结构：首先在符号收集阶段把函数、全局变量、局部变量和参数登记到符号表中；随后在检查阶段按语法树自顶向下遍历，维护当前所处的函数层数与循环层数，并依据节点类型实施规则判断。
-
-符号收集阶段的核心算法如下：
-
-\begin{verbatim}
-function collectSymbols(node, scope):
-    if node is FunctionDef:
-        func = new FunctionSymbol(name, returnType)
-        scope.define(func)
-        enterFunctionScope()
-        for param in parameters:
-            paramSym = new VariableSymbol(name, type)
-            currentScope.define(paramSym)
-        collectSymbols(body, currentScope)
-        exitFunctionScope()
-    elif node is DeclarationStmt:
-        var = new VariableSymbol(name, type)
-        scope.define(var)
-    elif node is AssignmentStmt:
-        if target is new variable:
-            type = inferType(rvalue)
-            var = new VariableSymbol(name, type)
-            scope.define(var)
-    for child in children:
-        collectSymbols(child, currentScope)
-\end{verbatim}
-
-符号查找采用作用域链搜索机制：
-
-\begin{verbatim}
-function lookup(name):
-    current = currentScope
-    while current is not null:
-        if current contains name:
-            return current.get(name)
-        current = current.parent
-    if globalScope contains name:
-        return globalScope.get(name)
-    return null
-\end{verbatim}
-
-在检查过程中，通过两个计数器维护当前上下文，用于验证跳转语句是否出现在合法的上下文内。变量访问时通过符号表逐级查找确定变量的作用域和类型，函数调用时对比实参与形参的数量和类型是否匹配。
-
-\subsection{结果分析}
-实验三阶段提供的语义错误样例涵盖了数组赋值、函数参数、返回值、循环和全局语句等多个维度。对这些样例逐项检查后，语义检查器能够在错误源头给出较明确的报错信息，说明符号表设计与作用域管理是有效的。尤其是在函数参数和数组访问的类型判断上，前端已经能把大量潜在后端崩溃提前拦截掉。
-
-通过自动化测试脚本可以验证语义检查功能，确保所有合法样例通过检查，所有错误样例被正确识别并报告相应的语义错误，位置信息精确到行和列。
-
-\subsection{问题与解决方案}
-语义阶段最棘手的问题是同一名字在不同作用域中的真实含义。例如局部变量与全局变量同名时，后端必须按当前作用域优先解析，否则会把局部定义错误地映射到全局地址。对此，项目中通过作用域栈查找和全局符号回退相结合的方式解决，实现了符号的栈式管理和逐级查找。
-
-另一个问题是数组访问结果在语义上属于整数，但数组变量本身又是指针，这要求检查器在返回类型和取值类型之间做出区分。解决方案是引入三种类型状态：整数类型、数组指针类型和未知类型。在检查变量访问时，根据是否有数组下标访问返回不同的类型信息——数组元素访问返回整数类型，而数组变量本身返回指针类型。
-
-\chapterline{Mandrill 2 虚拟机与代码生成器}
-
-\subsection{原理阐述}
-后端的目标是把语法树和语义信息翻译为课程组提供的虚拟机汇编。实验四的编译器采用直接遍历语法树生成文本汇编的方式，运行时再交由模拟器解释执行。该方案的优点是实现路径清晰：一旦语义检查通过，代码生成主要关注指令选型、栈帧管理、跳转标签和动态内存申请即可。
-
-代码生成器采用访问者模式遍历语法树，根据节点类型生成相应的虚拟机指令序列。虚拟机模拟器则负责解析汇编指令并执行，包含指令解析器、内存管理器和指令执行引擎。
-
-Mandrill 虚拟机使用一组简洁但足够表达控制流和内存操作的指令，例如全局数据访问指令用于读写全局变量，局部变量访问指令用于读写函数参数和局部变量，算术与比较运算指令完成计算操作，函数调用与返回指令实现过程调用，内存分配指令负责堆内存申请，输入输出指令实现数据的输入输出。
-
-在设计后端时，我们做出了多项关键决策。指令选择上采用栈式虚拟机模型，这种模型能够简化表达式求值和函数调用的实现，使得代码生成更加直观。标签管理使用字符串标签和延迟解析技术，避免手动计算指令地址，提高了代码的可读性和可维护性。内存布局方面，全局变量和局部变量分离管理，函数参数通过栈传递，确保了内存访问的安全性和效率。字符串处理统一采用 UTF-32 编码，每个字符占 4 字节，便于进行随机访问和数组操作。
-
-\begin{table}[H]
-    \centering
-    \caption{常见语法结构到虚拟机指令的映射}
-    \begin{tabular}{p{4.2cm}p{7.4cm}}
-        \toprule
-        语言结构 & 生成策略 \\
-        \midrule
-        整数字面量 & 直接生成 \texttt{dstore} 载入常量 \\
-        变量读写 & 根据作用域选择全局或局部访问指令 \\
-        数组元素访问 & 计算地址后使用数组读写指令 \\
-        函数调用 & 实参逆序入栈，设置帧大小后执行跳转 \\
-        \texttt{while} & 条件、循环体、退出点三标签控制 \\
-        \texttt{if-else} & then/else/end 三标签控制 \\
-        \bottomrule
-    \end{tabular}
-\end{table}
-
-\subsection{详细步骤}
-代码生成过程可以概括为以下几个步骤：
-\begin{enumerate}
-    \item 先跳转到主入口，避免函数定义体被当作全局语句立即执行。
-    \item 逐个生成函数体代码，并在函数入口处记录标签。
-    \item 对语句块维护作用域栈，局部变量与参数使用局部写入指令，全局变量使用全局写入指令。
-    \item 对条件语句和循环生成条件标签、分支标签和结束标签，利用标签解析实现跳转。
-    \item 对数组访问生成地址计算序列，即基址加索引乘 4 的偏移量，再使用数组读写指令。
-    \item 对字符串字面量按 UTF-32 进行展开，并在堆上分配连续空间后逐字符写入。
-\end{enumerate}
-
-代码生成器通过循环上下文栈记录嵌套循环的信息，用于正确生成跳转语句的目标；通过作用域栈维护当前作用域，区分局部变量与全局变量的访问方式。字符串字面量专门处理，先计算所需字节数，然后分配堆空间，最后逐个字符写入。
-
-循环语句的代码生成算法如下：
-
-\begin{verbatim}
-function compileWhile(condition, body):
-    condLabel = newLabel("while_cond")
-    bodyLabel = newLabel("while_body")
-    exitLabel = newLabel("while_exit")
-    
-    pushLoopContext(condLabel, exitLabel)
-    
-    emitLabel(condLabel)
-    emit("dstore", exitLabel)
-    emit("dstore", bodyLabel)
-    compileExpression(condition)
-    emit("eval", CONDITION)
-    
-    emitLabel(bodyLabel)
-    compileStatement(body)
-    emit("jump", condLabel)
-    
-    emitLabel(exitLabel)
-    popLoopContext()
-\end{verbatim}
-
-函数调用的代码生成算法：
-
-\begin{verbatim}
-function compileCall(name, arguments):
-    func = symbolTable.lookup(name)
-    for arg in reversed(arguments):
-        compileExpression(arg)
-    emit("dstore", func.frameSize)
-    emit("jal", func.label)
-    return func.returnType
-\end{verbatim}
-
-\subsection{编译器与模拟器说明}
-\begin{figure}[H]
-    \centering
-    \fbox{\begin{minipage}{0.9\textwidth}
-        \centering
-        编译器读取 \texttt{.mds} 源文件并输出 \texttt{.asm} 汇编，模拟器读取汇编并按指令逐条执行，最终通过标准输入输出完成程序验证。
-    \end{minipage}}
-    \caption{编译器与模拟器分工}
-\end{figure}
-
-编译器的前端部分复用了实验三的词法分析、语法分析和语义检查，后端则新增了代码生成模块。模拟器部分包含指令解析器、内存管理器和指令执行引擎，每条指令对应一个独立的实现类，通过统一的接口进行调度。
-
-虚拟机模拟器的执行流程如下：
-
-\begin{verbatim}
-function execute(instructions):
-    pc = 0
-    while pc < length(instructions):
-        inst = instructions[pc]
-        pc++
-        executeInstruction(inst)
-\end{verbatim}
-
-\subsection{结果分析}
-后端能够稳定通过课程组提供的代表性合法样例，包括加法、表达式求值、递归求最大公约数、斐波那契数列以及字符串相关样例。对这些程序的执行结果进行比对后，汇编输出与答案文件一致，说明函数调用、局部变量、递归返回、数组读写和字符串输出等关键路径已经打通。对于语义错误样例，前端会在生成汇编之前停止，从而避免错误程序进入模拟器执行。
-
-通过自动化测试脚本可以完成从编译到运行的全流程验证：先编译 Mandrill 源程序生成汇编代码，再运行模拟器执行汇编，并将输出与预期答案进行比对，确保所有测试用例都能通过。
-
-\subsection{问题与解决方案}
-后端最重要的难点集中在三个方面。第一是跳转目标的管理，如果不提前分配标签，跳转语句与条件分支很容易错位；因此实现中采用标签栈记录循环上下文，保存循环的开始和结束标签地址。
-
-第二是数组与字符串的动态内存分配，整数读取和数组读取的语义并不一样，最终通过在输入阶段区分目标类型并结合内存分配指令完成。对于整数变量，调用整数输入指令；对于数组变量，调用字符串输入指令，该指令会自动分配堆内存。
-
-第三是字符与字符串的编码处理，课程要求按 UTF-32 按字节寻址，因此字符串字面量在生成时必须统一转换并按 4 字节间隔写入。字符串生成算法如下：
-
-\begin{verbatim}
-function emitStringLiteral(str):
-    codePoints = getCodePoints(str)
-    bytes = (length(codePoints) + 1) * 4
-    emit("dstore", bytes)
-    emit("malloc", 0)
-    temp = allocateTemp()
-    emit("dwrite", temp)
-    
-    for i from 0 to length(codePoints)-1:
-        emit("dstore", codePoints[i])
-        emit("dload", temp)
-        emit("dstore", i * 4)
-        emit("eval", ADD)
-        emit("dawrite", 0)
-    
-    emit("dload", temp)
-\end{verbatim}
-
-该算法先计算字符串所需的字节数（每个码点 4 字节，加上结尾零），然后分配堆空间，最后逐个将字符写入堆内存。
-
-\chapterline{结果分析与问题解决}
-
-\subsection{综合结果分析}
-从整体上看，本次实践按照“词法--语法--语义--后端”逐层推进的方式完成了 Mandrill v2.0 编译器的实现。前端把复杂输入转换为结构化树，语义层把类型与作用域问题提前拦截，后端把剩余的合法程序映射为可执行汇编，这种分层设计既便于单元验证，也降低了联调难度。
-
-结合课程组提供的样例目录可以看出，编译器覆盖了普通算术与表达式计算、递归函数调用、数组与字符串处理、语义错误检测等典型场景，而且对每类场景都能给出符合预期的结果，说明实现已经达到课程设计要求。四个实验阶段的实现成果如下：
-
-\begin{table}[H]
-    \centering
-    \caption{各实验阶段实现成果}
-    \begin{tabular}{p{2.5cm}p{4cm}p{5.5cm}}
-        \toprule
-        实验阶段 & 核心功能 & 验证结果 \\
-        \midrule
-        实验一 & 手写词法分析器 & 正确识别所有词法单元，通过所有测试样例 \\
-        实验二 & 手写语法分析器 & 正确解析程序结构，正确处理表达式优先级 \\
-        实验三 & 语义检查器 & 正确检测类型错误、作用域错误、参数错误 \\
-        实验四 & 代码生成器与模拟器 & 正确生成汇编代码，正确执行并输出预期结果 \\
-        \bottomrule
-    \end{tabular}
-\end{table}
-
-\subsection{主要问题与解决方案汇总}
-
-\begin{table}[H]
-    \centering
-    \caption{实现过程中的典型问题与解决方案}
-    \begin{tabular}{p{4cm}p{7cm}}
-        \toprule
-        问题类别 & 解决方案 \\
-        \midrule
-        关键字与标识符冲突 & 采用优先级扫描和关键字表查询，确保关键字优先被识别 \\
-        表达式优先级错误 & 使用分层文法和递归下降函数，从语法层面保证运算优先级 \\
-        作用域解析混乱 & 采用符号表与作用域栈的组合，实现逐级查找 \\
-        函数调用与返回管理复杂 & 计算函数帧大小，参数逆序入栈，统一返回指令 \\
-        字符串和数组的内存布局不一致 & 采用统一的 UTF-32 编码和堆分配逻辑 \\
-        跳转目标管理困难 & 使用标签栈记录循环上下文，正确处理跳转语句 \\
-        \bottomrule
-    \end{tabular}
-\end{table}
-
-\chapterline{总结与展望}
-
-\subsection{心得体会}
-通过本次课程设计，我对编译器的分层结构有了更具体的认识。以前对“词法、语法、语义、代码生成”这些概念的理解偏抽象，而在真正实现之后，能够明显感受到每一层都有各自独立但又彼此依赖的职责。尤其是作用域、符号表和类型检查的设计，使我对语言实现中的“名字解析”与“值计算”之间的区别有了更清晰的理解。
-
-在实现过程中，我深刻体会到了模块化设计的重要性。每个阶段都有明确的输入输出接口，便于独立开发和测试。同时，通过逐步验证的方式，可以将错误范围控制在较小的代码块内，提高调试效率。
-
-\subsection{展望}
-如果继续扩展该项目，后续可以从以下几个方向完善：其一，增强错误恢复能力，使编译器能够在遇到局部语法错误后继续分析更多内容；其二，引入更丰富的静态分析，例如数组越界检测或未初始化使用检查；其三，改进后端生成策略，加入简单优化以减少无效指令；其四，继续丰富测试集，使回归验证更加系统化。总体而言，Mandrill v2.0 编译器已经为进一步研究更复杂的语言特性打下了良好基础。
-
-\begin{thebibliography}{9}
-	\bibitem{dragon} Alfred V. Aho, Monica S. Lam, Ravi Sethi, Jeffrey D. Ullman. \emph{Compilers: Principles, Techniques, and Tools}. Pearson, 2nd Edition.
-	\bibitem{antlr} Terence Parr. \emph{The Definitive ANTLR 4 Reference}. Pragmatic Bookshelf.
-	\bibitem{mandrill} 编译原理课程组. \emph{Mandrill v2.0 项目及语法概览}.
-	\bibitem{java} Oracle. \emph{Java Platform, Standard Edition Documentation}.
-\end{thebibliography}
-
+\newpage
 \appendix
-\chapterline{AI 使用情况}
-在四个实验的代码生成与修改过程中，AI 工具主要承担定位、补全和验证的辅助角色。整体上，使用方式都比较克制：先说明当前要修正的具体模块，再让工具给出局部修改建议，最后结合课程样例和编译结果确认是否可用。
+\section{AI 使用情况说明}
 
-实验一阶段主要围绕词法分析器展开，重点处理词法单元分类、关键字优先级、双字符运算符和注释跳过逻辑；实验二阶段主要用于检查递归下降解析器的语句分派、表达式优先级和函数体组织方式；实验三阶段则更多用在语法分析工具、符号表和作用域栈上，常见问题包括局部变量遮蔽全局变量、数组下标类型不符、函数参数数量不一致等；实验四阶段主要协助后端代码生成与模拟器联调，例如函数调用前的压栈顺序、循环跳转标签维护，以及输入语句对应的动态分配处理。总体来看，AI 工具并没有替代实现工作，而是帮助我更快地发现问题、缩小修改范围并验证结果，最终方案仍然以课程要求、源码结构和样例输出为准。
+\textbf{【必填】}根据课程学术诚信要求，请如实填写你在完成本实验过程中使用 AI 辅助的情况。若未使用任何 AI 工具，请明确写明"本次实验未使用任何 AI 工具"。
+
+\subsection{使用声明}
+
+\begin{table}[!htbp]
+    \centering
+    \begin{tabular}{|p{4cm}|p{9cm}|}
+    \hline
+    \textbf{项目} & \textbf{填写内容} \\
+    \hline
+    是否使用 AI 工具 & 是 \\
+    \hline
+    使用的 AI 模型 & GPT-4、Claude 3.5 \\
+    \hline
+    使用场景 & 代码调试、算法设计、LaTeX 排版、概念解释 \\
+    \hline
+    使用频率 & 偶尔 \\
+    \hline
+    \end{tabular}
+\end{table}
+
+\subsection{详细使用记录}
+
+\textbf{记录 1}
+
+\begin{tabular}{|p{3cm}|p{10cm}|}
+\hline
+场景 & 编写词法分析器时遇到转义字符处理问题 \\ \hline
+Prompt & "如何在 Java 中正确处理字符串中的转义字符，包括 \textbackslash n、\textbackslash\textbackslash、\textbackslash' 等？" \\ \hline
+AI 输出摘要 & 建议使用 switch-case 语句处理不同的转义序列，对于未知转义字符抛出异常 \\ \hline
+采纳与修改 & 参考了该思路，实现了转义字符处理逻辑，但根据 Mandrill 语言规范只支持特定转义序列 \\ \hline
+\end{tabular}
+
+\vspace{1em}
+
+\textbf{记录 2}
+
+\begin{tabular}{|p{3cm}|p{10cm}|}
+\hline
+场景 & 设计递归下降语法分析器时遇到运算符优先级问题 \\ \hline
+Prompt & "如何在递归下降 parser 中正确处理运算符优先级？请以表达式 a + b * c 为例说明。" \\ \hline
+AI 输出摘要 & 建议采用分层结构，每个优先级对应一个解析方法，高优先级的方法被低优先级方法调用 \\ \hline
+采纳与修改 & 完全采纳了该建议，实现了表达式优先级分层解析 \\ \hline
+\end{tabular}
+
+\vspace{1em}
+
+\textbf{记录 3}
+
+\begin{tabular}{|p{3cm}|p{10cm}|}
+\hline
+场景 & 编写实验报告时遇到 LaTeX 表格排版问题 \\ \hline
+Prompt & "如何在 LaTeX 中创建三线表？如何调整表格列宽和对齐方式？" \\ \hline
+AI 输出摘要 & 建议使用 booktabs 包的 \verb|\toprule|、\verb|\midrule|、\verb|\bottomrule| 命令，使用 p{width} 指定列宽 \\ \hline
+采纳与修改 & 参考了该建议，使用 booktabs 包创建了规范的表格 \\ \hline
+\end{tabular}
+
+\vspace{1em}
+
+\textbf{记录 4}
+
+\begin{tabular}{|p{3cm}|p{10cm}|}
+\hline
+场景 & 调试代码生成器时遇到栈操作顺序错误 \\ \hline
+Prompt & "栈式虚拟机中 eval 指令的操作数顺序是什么？条件跳转时栈的状态是怎样的？" \\ \hline
+AI 输出摘要 & eval 指令执行时，操作数栈顶为右操作数，次栈顶为左操作数；条件跳转时先压入跳转地址再压入条件值 \\ \hline
+采纳与修改 & 纠正了代码生成器中的栈操作顺序错误 \\ \hline
+\end{tabular}
+
+\subsection{诚信承诺}
+
+本人承诺：以上关于 AI 使用情况的说明真实、完整。本人理解并遵守课程关于学术诚信的相关规定，未将 AI 生成内容未经审阅直接作为自己的成果提交。
+
+\vspace{2em}
+\noindent 签名：\dlmu[6cm]{学生签名} \hspace{2em} 日期：\dlmu[4cm]{2026年5月27日}
 
 \end{document}

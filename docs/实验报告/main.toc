@@ -1,0 +1,26 @@
+\contentsline {section}{\numberline {1}词法分析器}{3}{section.1}%
+\contentsline {subsection}{\numberline {1.1}整体架构与字符扫描}{3}{subsection.1.1}%
+\contentsline {subsection}{\numberline {1.2}多字符运算符与关键字识别}{3}{subsection.1.2}%
+\contentsline {subsection}{\numberline {1.3}字符串与字符常量}{4}{subsection.1.3}%
+\contentsline {subsection}{\numberline {1.4}Token 输出与错误处理}{4}{subsection.1.4}%
+\contentsline {subsection}{\numberline {1.5}设计反思}{5}{subsection.1.5}%
+\contentsline {section}{\numberline {2}语法分析器}{5}{section.2}%
+\contentsline {subsection}{\numberline {2.1}递归下降 Parser 的设计}{5}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}特殊语法结构的处理}{6}{subsection.2.2}%
+\contentsline {subsection}{\numberline {2.3}错误处理策略}{6}{subsection.2.3}%
+\contentsline {section}{\numberline {3}语义分析}{6}{section.3}%
+\contentsline {subsection}{\numberline {3.1}符号表设计}{6}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}类型推断规则}{7}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}类型检查}{7}{subsection.3.3}%
+\contentsline {section}{\numberline {4}Mandrill 编译器}{7}{section.4}%
+\contentsline {subsection}{\numberline {4.1}中间代码与代码生成策略}{7}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}控制流翻译}{8}{subsection.4.2}%
+\contentsline {subsection}{\numberline {4.3}函数调用的翻译}{8}{subsection.4.3}%
+\contentsline {subsection}{\numberline {4.4}数组与字符串的处理}{9}{subsection.4.4}%
+\contentsline {subsection}{\numberline {4.5}汇编模拟器执行}{9}{subsection.4.5}%
+\contentsline {section}{\numberline {5}心得体会}{10}{section.5}%
+\contentsline {section}{\numberline {6}总结}{10}{section.6}%
+\contentsline {section}{\numberline {A}AI 使用情况说明}{11}{appendix.A}%
+\contentsline {subsection}{\numberline {A.1}使用声明}{11}{subsection.A.1}%
+\contentsline {subsection}{\numberline {A.2}详细使用记录}{11}{subsection.A.2}%
+\contentsline {subsection}{\numberline {A.3}诚信承诺}{12}{subsection.A.3}%
