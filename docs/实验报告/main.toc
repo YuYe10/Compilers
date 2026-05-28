@@ -23,4 +23,3 @@
 \contentsline {subsection}{\numberline {A.1}使用声明}{14}{subsection.A.1}%
 \contentsline {subsection}{\numberline {A.2}详细使用记录}{14}{subsection.A.2}%
 \contentsline {subsection}{\numberline {A.3}诚信承诺}{16}{subsection.A.3}%
-\contentsline {section}{\numberline {B}参考文献}{17}{appendix.B}%
